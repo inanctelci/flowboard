@@ -195,6 +195,10 @@ export function GenerationDialog() {
   const isVideo = targetType === "video";
   const isCharacter = targetType === "character";
   const isStoryboard = targetType === "Storyboard";
+  // Prompt nodes are text-only — clicking Generate runs auto_prompt
+  // synthesis from upstream context and writes the result back to
+  // node.data.prompt. No image dispatch, no aspect/variants.
+  const isPrompt = targetType === "prompt";
 
   // Find upstream source image for video nodes. When the upstream has
   // multiple variants, we batch-i2v one video per variant — `sourceMediaIds`
@@ -443,6 +447,60 @@ export function GenerationDialog() {
       closeGenerationDialog();
       return;
     }
+    if (isPrompt) {
+      // Prompt nodes don't dispatch an image/video — they synthesise
+      // text. Behaviour:
+      //   - If the user typed something, persist it as-is.
+      //   - If empty, call autoPromptApi to compose from upstream
+      //     briefs and write the result back.
+      // Aspect/variants are irrelevant — Prompt nodes just hold text
+      // that downstream image/video nodes consume as context.
+      const dbId = parseInt(rfId, 10);
+      if (isNaN(dbId)) {
+        closeGenerationDialog();
+        return;
+      }
+      let finalPrompt = prompt.trim();
+      if (!finalPrompt) {
+        setAutoBuilding(true);
+        useBoardStore.getState().updateNodeData(rfId, {
+          autoPromptStatus: "pending",
+        });
+        try {
+          const res = await autoPromptApi(dbId);
+          finalPrompt = res.prompt;
+          setPrompt(finalPrompt);
+          setAutoPromptUsed(true);
+          useBoardStore.getState().updateNodeData(rfId, {
+            autoPromptStatus: undefined,
+          });
+        } catch (err) {
+          setAutoBuilding(false);
+          useBoardStore.getState().updateNodeData(rfId, {
+            autoPromptStatus: "failed",
+          });
+          useGenerationStore.setState({
+            error: err instanceof Error
+              ? `Auto-prompt failed: ${err.message}`
+              : "Auto-prompt failed",
+          });
+          return;
+        }
+        setAutoBuilding(false);
+      }
+      // Persist + reflect in store. patchNode merges so other fields
+      // (title, aiBrief, …) are preserved.
+      useBoardStore.getState().updateNodeData(rfId, {
+        prompt: finalPrompt,
+        status: "done",
+      });
+      patchNode(dbId, {
+        status: "done",
+        data: { prompt: finalPrompt },
+      }).catch(() => {});
+      closeGenerationDialog();
+      return;
+    }
     if (isCharacter) {
       const built = buildCharacterPrompt(charGender, charCountry, charVibe, charExtras);
       // Stamp the picker selections directly onto the node so the detail
@@ -592,6 +650,10 @@ export function GenerationDialog() {
                 ? "Generate video"
                 : isCharacter
                 ? "Generate character"
+                : isStoryboard
+                ? "Generate storyboard"
+                : isPrompt
+                ? "Generate prompt"
                 : "Generate image"}
             </h2>
             <span className="gen-dialog__subtitle">
@@ -904,22 +966,24 @@ export function GenerationDialog() {
           </div>
         )}
 
-        {/* Aspect ratio */}
-        <div className="gen-dialog__field">
-          <span className="gen-dialog__label">Aspect ratio</span>
-          <div className="aspect-chip-row">
-            {(isVideo ? VIDEO_ASPECT_RATIOS : IMAGE_ASPECT_RATIOS).map((ar) => (
-              <button
-                key={ar.key}
-                className={`aspect-chip${aspectRatio === ar.key ? " aspect-chip--active" : ""}`}
-                onClick={() => setAspectRatio(ar.key)}
-                type="button"
-              >
-                {ar.label}
-              </button>
-            ))}
+        {/* Aspect ratio — irrelevant for prompt nodes (text-only). */}
+        {!isPrompt && (
+          <div className="gen-dialog__field">
+            <span className="gen-dialog__label">Aspect ratio</span>
+            <div className="aspect-chip-row">
+              {(isVideo ? VIDEO_ASPECT_RATIOS : IMAGE_ASPECT_RATIOS).map((ar) => (
+                <button
+                  key={ar.key}
+                  className={`aspect-chip${aspectRatio === ar.key ? " aspect-chip--active" : ""}`}
+                  onClick={() => setAspectRatio(ar.key)}
+                  type="button"
+                >
+                  {ar.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Camera movement (video only) */}
         {isVideo && (
@@ -946,9 +1010,9 @@ export function GenerationDialog() {
           </div>
         )}
 
-        {/* Variants stepper — image only (not storyboard, which has its own
-            Shots stepper below). */}
-        {!isVideo && !isStoryboard && (
+        {/* Variants stepper — image only (not storyboard, prompt; video
+            has its own one-clip-per-source-variant flow above). */}
+        {!isVideo && !isStoryboard && !isPrompt && (
           <div className="gen-dialog__field">
             <span className="gen-dialog__label">Variants</span>
             <div className="variants-stepper">
