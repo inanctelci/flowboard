@@ -421,6 +421,33 @@ def _aggregate_node_status(shots: list[dict]) -> str:
     return "running"
 
 
+def _persist_storyboard_progress(
+    node_id: int, shots: list[dict], node_status: str
+) -> None:
+    """Write the in-progress shots[] state to Node.data so the frontend
+    sees Phase A roots populate before Phase B finishes. Mirrors the final
+    patchNode payload the frontend writes on done — idempotent w.r.t.
+    that final write.
+
+    For 30-60s storyboards the request-level polling path only patches
+    the node ONCE on completion. Persisting after each phase lets a poll
+    of `/api/nodes/:id` return real-time progress.
+    """
+    from flowboard.db.models import Node
+    with get_session() as s:
+        node = s.get(Node, node_id)
+        if node is None:
+            return
+        new_data = dict(node.data or {})
+        new_data["shots"] = shots
+        new_data["shotCount"] = len(shots)
+        new_data["mediaIds"] = [sh.get("mediaId") for sh in shots]
+        node.data = new_data
+        node.status = node_status
+        s.add(node)
+        s.commit()
+
+
 async def _handle_gen_storyboard(params: dict) -> tuple[dict, Optional[str]]:
     from flowboard.services import prompt_synth
     from flowboard.services.flow_sdk import is_valid_project_id
@@ -450,6 +477,14 @@ async def _handle_gen_storyboard(params: dict) -> tuple[dict, Optional[str]]:
     if isinstance(raw_refs, list):
         refs = [m for m in raw_refs if isinstance(m, str) and m]
 
+    # Hoist node_id read here so progressive-persistence helpers below can
+    # reach Node.data without depending on planner branch. The escape-hatch
+    # path (caller supplies shot_prompts) doesn't require a node_id — tests
+    # of the validation-only path call without one. Persistence is gated on
+    # `isinstance(node_id, int)` so a missing node_id is a no-op, not an
+    # error, here.
+    node_id = params.get("__node_id") or params.get("node_id")
+
     # 1. Plan beats (or use caller-supplied)
     if isinstance(params.get("shot_prompts"), list):
         prompts = list(params["shot_prompts"])
@@ -457,7 +492,6 @@ async def _handle_gen_storyboard(params: dict) -> tuple[dict, Optional[str]]:
         if len(prompts) != n or len(parents) != n:
             return {}, "shot_prompts_length_mismatch"
     else:
-        node_id = params.get("__node_id") or params.get("node_id")
         if not isinstance(node_id, int):
             return {}, "missing_node_id_for_planner"
         try:
@@ -475,7 +509,14 @@ async def _handle_gen_storyboard(params: dict) -> tuple[dict, Optional[str]]:
         return {}, "parents_root_must_be_null"
     for k in range(1, n):
         v = parents[k]
-        if v is not None and not (isinstance(v, int) and 0 <= v < k):
+        # Reject bool explicitly: in Python `bool` subclasses `int`, so a
+        # caller posting `shot_parents=[null, true]` would otherwise pass
+        # the `isinstance(v, int)` check and `True == 1` would silently be
+        # used as the parent index. Mirrors the planner-side validation in
+        # `auto_prompt_storyboard` (services/prompt_synth.py).
+        if v is not None and not (
+            isinstance(v, int) and not isinstance(v, bool) and 0 <= v < k
+        ):
             return {}, f"parents_oob_at_{k}"
 
     # 3. Initialise shots state
@@ -537,6 +578,12 @@ async def _handle_gen_storyboard(params: dict) -> tuple[dict, Optional[str]]:
                 shots[k]["status"] = "error"
                 shots[k]["error"] = err_msg
     _propagate_blocked(shots)
+    # Persist Phase A progress so the frontend sees roots populate before
+    # Phase B finishes (mirrors the final patchNode payload — idempotent).
+    if isinstance(node_id, int):
+        _persist_storyboard_progress(
+            node_id, shots, _aggregate_node_status(shots)
+        )
 
     # 5. Phase B — BFS children level by level
     while True:
@@ -577,6 +624,14 @@ async def _handle_gen_storyboard(params: dict) -> tuple[dict, Optional[str]]:
 
         await asyncio.gather(*[_edit_one(k) for k in eligible])
         _propagate_blocked(shots)
+        # Persist after each BFS level so a long Phase B reveals progress
+        # tile-by-tile. The next eligibility scan uses the in-memory shots
+        # list, not the persisted copy, so this write is purely for
+        # frontend visibility.
+        if isinstance(node_id, int):
+            _persist_storyboard_progress(
+                node_id, shots, _aggregate_node_status(shots)
+            )
 
     return (
         {

@@ -476,6 +476,119 @@ async def test_retry_storyboard_shot_validates_shot_idx(client, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_gen_storyboard_rejects_bool_parents(client, monkeypatch):
+    """Audit S2: `isinstance(v, int)` accepts `bool` because in Python
+    `bool` subclasses `int`. A caller posting `shot_parents=[null, true]`
+    must NOT slip through and silently use `True == 1` as a parent index.
+    Mirror the planner-side validation in `auto_prompt_storyboard`.
+    """
+    sdk = _StubSdk()
+    monkeypatch.setattr(proc, "get_flow_sdk", lambda: sdk)
+    out, err = await proc._handle_gen_storyboard(
+        {
+            "shot_count": 2,
+            "project_id": "abcd1234",
+            "paygate_tier": "PAYGATE_TIER_ONE",
+            "shot_prompts": ["a", "b"],
+            "shot_parents": [None, True],  # bool sneaking in as int
+            "__node_id": _seed_storyboard_node(),
+        }
+    )
+    assert err == "parents_oob_at_1"
+    # Validation must short-circuit before any SDK dispatch.
+    assert sdk.gen_calls == []
+    assert sdk.edit_calls == []
+
+
+@pytest.mark.asyncio
+async def test_gen_storyboard_persists_progress_between_phases(
+    client, monkeypatch
+):
+    """Audit S4: the worker writes Node.data.shots[] after each phase
+    (Phase A roots, then each Phase B BFS level) so the frontend sees
+    roots populate before continuations finish. After the handler
+    returns the Node row's `data["shots"]` MUST mirror the final state.
+    """
+    node_id = _seed_storyboard_node()
+    sdk = _StubSdk()
+    monkeypatch.setattr(proc, "get_flow_sdk", lambda: sdk)
+
+    parents = [None, 0, 1]
+    out, err = await proc._handle_gen_storyboard(
+        {
+            "shot_count": 3,
+            "project_id": "abcd1234",
+            "paygate_tier": "PAYGATE_TIER_ONE",
+            "shot_prompts": ["a", "b", "c"],
+            "shot_parents": parents,
+            "__node_id": node_id,
+        }
+    )
+    assert err is None, err
+    assert out["node_status"] == "done"
+
+    with get_session() as s:
+        node = s.get(Node, node_id)
+        assert node is not None
+        data = dict(node.data or {})
+
+    # The persisted shots[] must equal the final result returned by the
+    # handler — i.e. the helper ran at least at end-of-each-phase, and
+    # the last write reflects the completed tree.
+    assert data.get("shots") == out["shots"]
+    assert data.get("shotCount") == len(out["shots"])
+    assert data.get("mediaIds") == [sh.get("mediaId") for sh in out["shots"]]
+    # Helper also stamps the aggregated node status.
+    assert node.status == "done"
+    # Pre-existing keys (e.g. {"title": "Story"} from _seed_storyboard_node)
+    # must survive the merge — helper builds new_data by copying node.data.
+    assert data.get("title") == "Story"
+
+
+@pytest.mark.asyncio
+async def test_gen_storyboard_persists_progress_multiple_times(
+    client, monkeypatch
+):
+    """Stronger Audit S4 check: for a tree with 1 root + 2 children
+    (parents=[None, 0, 1]) the helper must run at least twice — once
+    after Phase A, then after each Phase B BFS level (2 levels here:
+    {1} then {2}). Three writes total.
+    """
+    node_id = _seed_storyboard_node()
+    sdk = _StubSdk()
+    monkeypatch.setattr(proc, "get_flow_sdk", lambda: sdk)
+
+    calls: list[str] = []
+    real_persist = proc._persist_storyboard_progress
+
+    def _spy(nid, shots, status):
+        # Snapshot the per-call status string so we can verify the
+        # progression is plausible (running → done) on a chain.
+        calls.append(status)
+        real_persist(nid, shots, status)
+
+    monkeypatch.setattr(proc, "_persist_storyboard_progress", _spy)
+
+    out, err = await proc._handle_gen_storyboard(
+        {
+            "shot_count": 3,
+            "project_id": "abcd1234",
+            "paygate_tier": "PAYGATE_TIER_ONE",
+            "shot_prompts": ["a", "b", "c"],
+            "shot_parents": [None, 0, 1],
+            "__node_id": node_id,
+        }
+    )
+    assert err is None
+    # Phase A (1 root) + Phase B level 1 (shot 1) + Phase B level 2 (shot 2)
+    # = 3 writes. Loosen to ≥2 in case a future refactor coalesces the
+    # final iteration; the contract is "at least multiple progressive
+    # writes", not exactly 3.
+    assert len(calls) >= 2, calls
+    assert calls[-1] == "done"
+
+
+@pytest.mark.asyncio
 async def test_gen_storyboard_via_request_endpoint(client, monkeypatch):
     """Full round-trip: POST /api/requests {type:"gen_storyboard"} → poll."""
     node_id = _seed_storyboard_node()
