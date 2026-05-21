@@ -142,11 +142,31 @@ async def _handle_gen_image(params: dict) -> tuple[dict, Optional[str]]:
     return resp, None
 
 
-# Video polling knobs — overridable in tests. flowkit uses 420s/10s; Flow's
-# video gen routinely takes 4-6 minutes, so 5 minutes is too tight and times
-# out legitimately-finishing operations.
+# Video polling knobs — overridable in tests. 5-minute hard deadline
+# (30 cycles × 10s). When the budget runs out without all ops finishing
+# the handler returns the ``timeout_waiting_video`` sentinel and the
+# worker stamps the row as ``status='timeout'`` (distinct from
+# ``failed``) so the UI can render it as a soft auto-cancel rather than
+# a generation error.
 VIDEO_POLL_INTERVAL_S = 10.0
-VIDEO_POLL_MAX_CYCLES = 42
+VIDEO_POLL_MAX_CYCLES = 30
+
+
+def _is_request_canceled(rid: Optional[int]) -> bool:
+    """Return True iff the cancel endpoint flipped this row to canceled.
+
+    Long-running handlers call this between polls so a user-initiated
+    cancel takes effect mid-flight (we can't abort the Flow HTTP calls
+    themselves, but we can stop polling and let _process_one keep the
+    canceled status intact).
+    """
+    if not isinstance(rid, int):
+        return False
+    with get_session() as s:
+        req = s.get(Request, rid)
+        if req is None:
+            return True
+        return req.status == "canceled"
 
 
 async def _handle_gen_video(params: dict) -> tuple[dict, Optional[str]]:
@@ -212,6 +232,7 @@ async def _handle_gen_video(params: dict) -> tuple[dict, Optional[str]]:
     done_by_name: dict[str, bool] = {name: False for name in op_names}
     entry_by_name: dict[str, dict] = {}
     op_errors: dict[str, str] = {}
+    rid = params.get("__request_id")
 
     # Per-op resolution: each operation in the batch resolves
     # independently (success, content-filter rejection, or timeout). We
@@ -226,6 +247,22 @@ async def _handle_gen_video(params: dict) -> tuple[dict, Optional[str]]:
     ):
         await asyncio.sleep(VIDEO_POLL_INTERVAL_S)
         poll_attempts += 1
+        if _is_request_canceled(rid):
+            # User canceled mid-poll. Bail with the special error code
+            # so _process_one knows to leave the row's canceled status
+            # intact (the cancel endpoint already stamped finished_at +
+            # error='canceled'). Any partial state we collected is
+            # preserved on `result` for the detail viewer.
+            return (
+                {
+                    "raw_dispatch": dispatch,
+                    "last_poll": last_poll,
+                    "operation_names": op_names,
+                    "done": done_by_name,
+                    "canceled": True,
+                },
+                "canceled",
+            )
         last_poll = await sdk.check_async(op_names, workflows=workflows)
         if last_poll.get("error"):
             continue
@@ -785,11 +822,169 @@ async def _handle_retry_storyboard_shot(params: dict) -> tuple[dict, Optional[st
     )
 
 
+# ── Omni Flash r2v ────────────────────────────────────────────────────────
+# Variable-duration video model with a distinct endpoint + body shape from
+# Veo i2v. See agent/flowboard/services/flow_sdk.py::gen_video_omni for the
+# request assembly. Single operation per request (no multi-source batching
+# like Veo's start_media_ids), so the polling logic collapses to a single
+# op + first-error-wins, simpler than _handle_gen_video.
+
+async def _handle_gen_video_omni(params: dict) -> tuple[dict, Optional[str]]:
+    from flowboard.services.flow_sdk import is_valid_project_id
+
+    prompt = params.get("prompt")
+    project_id = params.get("project_id")
+    raw_refs = params.get("ref_media_ids")
+    if not isinstance(raw_refs, list):
+        # Also accept the legacy single-source field for symmetry with
+        # Veo's start_media_id, so the same upstream-walk on the frontend
+        # works without a special-case.
+        raw_refs = (
+            [params.get("start_media_id")]
+            if isinstance(params.get("start_media_id"), str)
+            else []
+        )
+    ref_media_ids = [m for m in raw_refs if isinstance(m, str) and m.strip()]
+    duration_s = params.get("duration_s")
+
+    if not isinstance(prompt, str) or not prompt.strip():
+        return {}, "missing_prompt"
+    if not isinstance(project_id, str) or not project_id.strip():
+        return {}, "missing_project_id"
+    project_id = project_id.strip()
+    if not is_valid_project_id(project_id):
+        return {}, "invalid_project_id"
+    if not ref_media_ids:
+        return {}, "missing_ref_media_ids"
+    if not isinstance(duration_s, int) or duration_s not in (4, 6, 8, 10):
+        return {}, "invalid_duration_s"
+    aspect = params.get("aspect_ratio") or "VIDEO_ASPECT_RATIO_PORTRAIT"
+    tier = params.get("paygate_tier") or flow_client.paygate_tier
+    if tier is None:
+        return {}, "paygate_tier_unknown"
+
+    sdk = get_flow_sdk()
+    dispatch = await sdk.gen_video_omni(
+        prompt=prompt.strip(),
+        project_id=project_id,
+        ref_media_ids=ref_media_ids,
+        duration_s=duration_s,
+        aspect_ratio=aspect,
+        paygate_tier=tier,
+    )
+    if dispatch.get("error"):
+        return dispatch, str(dispatch["error"])[:200]
+
+    op_names = dispatch.get("operation_names") or []
+    if not op_names:
+        return dispatch, "no_operations_returned"
+    workflows = dispatch.get("workflows") or None
+
+    poll_attempts = 0
+    last_poll: dict = {}
+    done_by_name: dict[str, bool] = {name: False for name in op_names}
+    entry_by_name: dict[str, dict] = {}
+    op_errors: dict[str, str] = {}
+    rid = params.get("__request_id")
+
+    while (
+        poll_attempts < VIDEO_POLL_MAX_CYCLES
+        and not all(done_by_name.values())
+    ):
+        await asyncio.sleep(VIDEO_POLL_INTERVAL_S)
+        poll_attempts += 1
+        if _is_request_canceled(rid):
+            return (
+                {
+                    "raw_dispatch": dispatch,
+                    "last_poll": last_poll,
+                    "operation_names": op_names,
+                    "done": done_by_name,
+                    "canceled": True,
+                },
+                "canceled",
+            )
+        last_poll = await sdk.check_async(op_names, workflows=workflows)
+        if last_poll.get("error"):
+            continue
+        for op in last_poll.get("operations") or []:
+            if not isinstance(op, dict):
+                continue
+            name = op.get("name")
+            if not isinstance(name, str) or done_by_name.get(name, False):
+                continue
+            err = op.get("error")
+            if isinstance(err, str) and err:
+                done_by_name[name] = True
+                op_errors[name] = err
+                continue
+            if op.get("done"):
+                done_by_name[name] = True
+                for e in op.get("media_entries") or []:
+                    if isinstance(e, dict) and e.get("media_id"):
+                        entry_by_name[name] = e
+                        break
+
+    for name in op_names:
+        if not done_by_name.get(name) and name not in op_errors:
+            op_errors[name] = "timeout_waiting_video"
+
+    positional_ids: list[Optional[str]] = []
+    slot_errors: list[Optional[str]] = []
+    succeeded_entries: list[dict] = []
+    for name in op_names:
+        e = entry_by_name.get(name)
+        if isinstance(e, dict) and isinstance(e.get("media_id"), str):
+            positional_ids.append(e["media_id"])
+            succeeded_entries.append(e)
+            slot_errors.append(None)
+        else:
+            positional_ids.append(None)
+            slot_errors.append(op_errors.get(name))
+
+    if not any(positional_ids):
+        first_err = next(iter(op_errors.values()), "timeout_waiting_video")
+        return (
+            {
+                "raw_dispatch": dispatch,
+                "last_poll": last_poll,
+                "operation_names": op_names,
+                "done": done_by_name,
+                "op_errors": op_errors,
+            },
+            first_err,
+        )
+
+    entries_with_urls = [
+        e for e in succeeded_entries if isinstance(e, dict) and e.get("url")
+    ]
+    if entries_with_urls:
+        try:
+            media_service.ingest_urls(entries_with_urls)
+        except Exception:  # noqa: BLE001
+            logger.exception("auto-ingest from gen_video_omni response failed")
+
+    return (
+        {
+            "raw_dispatch": dispatch,
+            "last_poll": last_poll,
+            "operation_names": op_names,
+            "media_ids": positional_ids,
+            "media_entries": succeeded_entries,
+            "op_errors": op_errors,
+            "slot_errors": slot_errors,
+            "duration_s": duration_s,
+        },
+        None,
+    )
+
+
 _DEFAULT_HANDLERS: dict[str, Handler] = {
     "proxy": _handle_proxy,
     "create_project": _handle_create_project,
     "gen_image": _handle_gen_image,
     "gen_video": _handle_gen_video,
+    "gen_video_omni": _handle_gen_video_omni,
     "edit_image": _handle_edit_image,
     "gen_storyboard": _handle_gen_storyboard,
     "retry_storyboard_shot": _handle_retry_storyboard_shot,
@@ -877,6 +1072,9 @@ class WorkerController:
                 # prefix avoids colliding with handler-defined fields.
                 if req.node_id is not None and "__node_id" not in params:
                     params["__node_id"] = req.node_id
+                # Long-running handlers re-check this rid between polls
+                # to honor user-initiated cancels.
+                params["__request_id"] = rid
 
             # Release the session during the possibly-long RPC.
             result, err = await handler(params)
@@ -885,10 +1083,22 @@ class WorkerController:
                 req = s.get(Request, rid)
                 if req is None:
                     return
+                # Don't overwrite a canceled row with a late-arriving
+                # done/failed stamp. The cancel endpoint already set
+                # status='canceled' and finished_at; we only persist the
+                # partial result for debugging visibility.
+                if req.status == "canceled":
+                    if isinstance(result, dict):
+                        req.result = result
+                        s.add(req)
+                        s.commit()
+                    return
                 req.result = result if isinstance(result, dict) else {"value": result}
                 req.finished_at = datetime.now(timezone.utc)
                 if err:
-                    req.status = "failed"
+                    # Video-poll exhaustion gets its own status so the UI
+                    # can render "TIMEOUT" instead of a generic failure.
+                    req.status = "timeout" if err == "timeout_waiting_video" else "failed"
                     req.error = err
                 else:
                     req.status = "done"
@@ -900,7 +1110,7 @@ class WorkerController:
             try:
                 with get_session() as s:
                     req = s.get(Request, rid)
-                    if req is not None:
+                    if req is not None and req.status != "canceled":
                         req.status = "failed"
                         req.error = str(exc)[:500]
                         req.finished_at = datetime.now(timezone.utc)

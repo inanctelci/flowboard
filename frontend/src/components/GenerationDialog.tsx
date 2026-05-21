@@ -2,6 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useGenerationStore } from "../store/generation";
 import { useBoardStore } from "../store/board";
 import {
+  useSettingsStore,
+  OMNI_FLASH_CREDIT_COST,
+  OMNI_FLASH_DURATIONS,
+  type OmniFlashDuration,
+} from "../store/settings";
+import {
   autoPrompt as autoPromptApi,
   autoPromptBatch as autoPromptBatchApi,
   mediaUrl,
@@ -993,6 +999,42 @@ export function GenerationDialog() {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Omni Flash duration picker — video only, when the user's
+            settings select the Omni model family. Replaces the implicit
+            ~8s Veo duration with a per-dispatch radio. Credit cost is
+            surfaced beside each option. */}
+        {isVideo && useSettingsStore.getState().videoModel === "omni_flash" && (
+          <div className="gen-dialog__field">
+            <span className="gen-dialog__label">Duration (Omni Flash)</span>
+            <div className="aspect-chip-row">
+              {OMNI_FLASH_DURATIONS.map((d) => {
+                const active =
+                  useSettingsStore.getState().omniFlashDuration === d;
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    className={`aspect-chip${active ? " aspect-chip--active" : ""}`}
+                    onClick={() =>
+                      useSettingsStore
+                        .getState()
+                        .setOmniFlashDuration(d as OmniFlashDuration)
+                    }
+                    title={`${d}s — ${OMNI_FLASH_CREDIT_COST[d]} credits`}
+                  >
+                    {d}s · {OMNI_FLASH_CREDIT_COST[d]}c
+                  </button>
+                );
+              })}
+            </div>
+            <p className="gen-dialog__hint">
+              Omni Flash dispatches via <code>video:batchAsyncGenerateVideoReferenceImages</code>
+              {" "}with the upstream image(s) as <code>IMAGE_USAGE_TYPE_ASSET</code> refs.
+              Duration scales credit cost: 4s=15, 6s=20, 8s=25, 10s=30.
+            </p>
           </div>
         )}
 
