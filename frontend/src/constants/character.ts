@@ -1,3 +1,5 @@
+import i18n from "../i18n/i18n";
+
 // Character builder presets — shared between the GenerationDialog
 // (uses `tokens` to bake into the prompt) and the ResultViewer detail
 // panel (uses `label` to render country/vibe pills under the model
@@ -102,4 +104,44 @@ export function countryLabel(key: string | undefined): string | null {
 export function vibeLabel(key: string | undefined): string | null {
   if (!key) return null;
   return CHARACTER_VIBES.find((v) => v.key === key)?.label ?? null;
+}
+
+// Localized display helpers — use these in UI rendering contexts.
+// The original countryLabel/vibeLabel helpers return the raw .label field
+// (Vietnamese strings from the constants above) and are kept for backend
+// prompt-building where locale-specific UI text must NOT be injected.
+export function localizedGenderLabel(key: string | undefined): string | null {
+  if (!key) return null;
+  switch (key) {
+    case "male": return i18n.t("character.gender.male");
+    case "female": return i18n.t("character.gender.female");
+    default: return CHARACTER_GENDERS.find((g) => g.key === key)?.label ?? null;
+  }
+}
+
+export function localizedCountryLabel(key: string | undefined): string | null {
+  if (!key) return null;
+  switch (key) {
+    case "vn": return i18n.t("character.country.vn");
+    case "jp": return i18n.t("character.country.jp");
+    case "kr": return i18n.t("character.country.kr");
+    case "cn": return i18n.t("character.country.cn");
+    case "th": return i18n.t("character.country.th");
+    case "us": return i18n.t("character.country.us");
+    case "fr": return i18n.t("character.country.fr");
+    default: return CHARACTER_COUNTRIES.find((c) => c.key === key)?.label ?? null;
+  }
+}
+
+export function localizedVibeLabel(key: string | undefined): string | null {
+  if (!key) return null;
+  switch (key) {
+    case "clean": return i18n.t("character.vibe.clean");
+    case "douyin": return i18n.t("character.vibe.douyin");
+    case "oldmoney": return i18n.t("character.vibe.oldmoney");
+    case "coldgirl": return i18n.t("character.vibe.coldgirl");
+    case "kpop": return i18n.t("character.vibe.kpop");
+    case "casual": return i18n.t("character.vibe.casual");
+    default: return CHARACTER_VIBES.find((v) => v.key === key)?.label ?? null;
+  }
 }
