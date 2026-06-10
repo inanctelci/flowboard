@@ -67,7 +67,7 @@ export interface FlowboardNodeData extends Record<string, unknown> {
   // render a visible "busy" treatment that blocks duplicate dispatches.
   autoPromptStatus?: "pending" | "done" | "failed";
   // ISO timestamp persisted when a generation completes successfully.
-  // Powers the "5 phút trước" relative-time display in ResultViewer.
+  // Powers the relative-time display in ResultViewer.
   // Uploads also stamp this so the timestamp reflects "when the asset
   // landed on the node" regardless of source.
   renderedAt?: string;
@@ -134,6 +134,7 @@ function debouncePosition(rfId: string, fn: () => void, delay = 150) {
 }
 
 // ── Type-to-title lookup ───────────────────────────────────────────────────
+// i18n: do-not-translate (data defaults persisted on node creation — translating would change persisted strings across locales)
 const TYPE_TITLE: Record<NodeType, string> = {
   character: "Character",
   image: "Image",
