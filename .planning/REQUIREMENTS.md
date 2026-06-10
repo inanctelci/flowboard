@@ -12,20 +12,20 @@ All requirements are atomic, user-centric (or maintainer-centric where the
 
 ### Infrastructure & Scaffolding (INFRA)
 
-- [ ] **INFRA-01**: User can load the app with `react-i18next@^17` + `i18next@^26` + `i18next-browser-languagedetector@^8` initialized at module scope in `frontend/src/i18n/i18n.ts` before React renders
-- [ ] **INFRA-02**: User's missing translation keys fall back to English (the default and reference locale)
-- [ ] **INFRA-03**: Developer gets a TypeScript compile error from `tsc -b --noEmit` (the existing `npm run lint` script) when calling `t('missing.key')` on a key that doesn't exist in `en.json`, via `CustomTypeOptions` declaration merging in `frontend/src/i18n/i18n.d.ts`
-- [ ] **INFRA-04**: User's locale state lives in i18next as the source of truth, with a mirror in the existing Settings Zustand store for SettingsPanel display
-- [ ] **INFRA-05**: User's chosen locale persists across reloads via localStorage under a dedicated key `flowboard.i18n.locale`
-- [ ] **INFRA-06**: User sees no first-paint flicker because all locale catalogs are bundled (not HTTP-loaded) and `i18n.init()` runs synchronously at module load
-- [ ] **INFRA-07**: Catalog files live at `frontend/src/i18n/locales/en.json` and `frontend/src/i18n/locales/tr.json` in a flat single-namespace layout
+- [x] **INFRA-01**: User can load the app with `react-i18next@^17` + `i18next@^26` + `i18next-browser-languagedetector@^8` initialized at module scope in `frontend/src/i18n/i18n.ts` before React renders
+- [x] **INFRA-02**: User's missing translation keys fall back to English (the default and reference locale)
+- [x] **INFRA-03**: Developer gets a TypeScript compile error from `tsc -b --noEmit` (the existing `npm run lint` script) when calling `t('missing.key')` on a key that doesn't exist in `en.json`, via `CustomTypeOptions` declaration merging in `frontend/src/i18n/i18n.d.ts`
+- [x] **INFRA-04**: User's locale state lives in i18next as the source of truth, with a mirror in the existing Settings Zustand store for SettingsPanel display
+- [x] **INFRA-05**: User's chosen locale persists across reloads via localStorage under a dedicated key `flowboard.i18n.locale`
+- [x] **INFRA-06**: User sees no first-paint flicker because all locale catalogs are bundled (not HTTP-loaded) and `i18n.init()` runs synchronously at module load
+- [x] **INFRA-07**: Catalog files live at `frontend/src/i18n/locales/en.json` and `frontend/src/i18n/locales/tr.json` in a flat single-namespace layout
 - [ ] **INFRA-08**: Project README and a new `CONTRIBUTING-i18n.md` describe how a community contributor adds a new locale by copying `en.json`, translating values, and opening a PR
 
 ### Live Bug Fixes (BUGS) — wrapped into this milestone
 
-- [ ] **BUGS-01**: `formatRelativeTime` in `frontend/src/canvas/ResultViewer.tsx` lines 60-73 is rewritten to use i18n keys instead of its current hardcoded Vietnamese strings
-- [ ] **BUGS-02**: `humanizeBackendError` in `frontend/src/api/client.ts:19` uses locale-safe case conversion (e.g., `.toLowerCase("en-US")` or invariant-style comparison) so Turkish dotted-i does not corrupt the `startsWith("public_error_")` match
-- [ ] **BUGS-03**: `frontend/index.html` ships with `lang="en"` and an effect in `App.tsx` updates `document.documentElement.lang` whenever `i18n.resolvedLanguage` changes
+- [x] **BUGS-01**: `formatRelativeTime` in `frontend/src/canvas/ResultViewer.tsx` lines 60-73 is rewritten to use i18n keys instead of its current hardcoded Vietnamese strings
+- [x] **BUGS-02**: `humanizeBackendError` in `frontend/src/api/client.ts:19` uses locale-safe case conversion (e.g., `.toLowerCase("en-US")` or invariant-style comparison) so Turkish dotted-i does not corrupt the `startsWith("public_error_")` match
+- [x] **BUGS-03**: `frontend/index.html` ships with `lang="en"` and an effect in `App.tsx` updates `document.documentElement.lang` whenever `i18n.resolvedLanguage` changes
 
 ### String Extraction — English Baseline (EXTRACT)
 
