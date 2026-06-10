@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 1 — Infra + Audit
-current_plan: None yet (awaiting `/gsd-plan-phase 1`)
-status: Not started
-last_updated: "2026-06-10T15:07:29.555Z"
+current_phase: 3 — Turkish + Switcher
+current_plan: 03-PLAN (complete)
+status: Phase 3 complete
+last_updated: "2026-06-10T19:05:00Z"
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 4
-  percent: 25
+  completed_plans: 7
+  percent: 100
 ---
 
 # Project State — Flowboard i18n Milestone
 
 **Last updated:** 2026-06-10
-**Session:** Roadmap created; awaiting Phase 1 planning
+**Session:** Phase 3 complete — Turkish translation (417 keys) + language picker in SettingsPanel
 
 ---
 
@@ -32,10 +32,10 @@ progress:
 
 ## Current Position
 
-**Current phase:** 1 — Infra + Audit
-**Current plan:** None yet (awaiting `/gsd-plan-phase 1`)
-**Status:** Not started
-**Phase goal:** Wire the i18n layer, fix live bugs, produce the extraction inventory
+**Current phase:** 3 — Turkish + Switcher (COMPLETE)
+**Current plan:** 03-PLAN complete
+**Status:** Phase 3 complete — ready for Phase 4 (Polish + Verify)
+**Phase goal:** ✓ Full Turkish translation + language picker UI delivered
 
 ```
 Progress: [██████░░░░] 57%
@@ -47,9 +47,9 @@ Progress: [██████░░░░] 57%
 
 | Phase | Name | Status | Requirements |
 |-------|------|--------|-------------|
-| 1 | Infra + Audit | Not started | INFRA-01..07, BUGS-01..03 (10) |
-| 2 | English Extraction | Not started | EXTRACT-01..07 (7) |
-| 3 | Turkish + Switcher | Not started | TR-01..04, SWITCH-01..04 (8) |
+| 1 | Infra + Audit | Complete | INFRA-01..07, BUGS-01..03 (10) |
+| 2 | English Extraction | Complete | EXTRACT-01..07 (7) |
+| 3 | Turkish + Switcher | Complete | TR-01..04, SWITCH-01..04 (8) |
 | 4 | Polish + Verify | Not started | VERIFY-01..04, INFRA-08 (5) |
 
 ---
@@ -60,8 +60,8 @@ Progress: [██████░░░░] 57%
 |--------|-------|
 | Total requirements (v1) | 30 |
 | Requirements completed | 0 |
-| Phases complete | 0/4 |
-| Plans complete | 0/7 |
+| Phases complete | 3/4 |
+| Plans complete | 7/7 |
 
 ---
 
@@ -72,6 +72,10 @@ Progress: [██████░░░░] 57%
 | Decision | Rationale |
 |----------|-----------|
 | react-i18next@^17 + i18next@^26 | Locked from research — Lingui 6 disqualified (Vite >=6.3 peer dep); best DX for React 18 + TS strict |
+| "Generate" → "Üret" (not "Oluştur") | "Üret" is the conventional AI generation verb in Turkish UI contexts |
+| "Activity" → "Aktivite" (not "Etkinlik") | Loanword is shorter and more universally understood; maintainer may prefer native form |
+| "Pipeline" left as English | "Ardışık düzen" is the literal translation but Turkish devs universally use "pipeline" |
+| settings-panel__select class for language picker | Native HTML select within existing section pattern; minimal new CSS needed for polish |
 | `flowboard.i18n.locale` localStorage key | Dedicated sibling key to `flowboard.settings.v1`; avoids nested-key lookup complexity |
 | Flat `en.json` / `tr.json`, no namespace split | <300 keys; single namespace reduces OSS contributor friction |
 | TypeScript typed keys via `CustomTypeOptions` | Only automated correctness gate without a frontend test runner |
@@ -128,3 +132,4 @@ To resume this project:
 ---
 
 *State initialized: 2026-06-10 after roadmap creation*
+*Phase 3 completed: 2026-06-10 — 417 Turkish keys + language picker in SettingsPanel*
