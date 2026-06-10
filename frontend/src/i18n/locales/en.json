@@ -1,0 +1,11 @@
+{
+  "time.just_now": "just now",
+  "time.seconds_ago_one": "{{count}}s ago",
+  "time.seconds_ago_other": "{{count}}s ago",
+  "time.minutes_ago_one": "{{count}} min ago",
+  "time.minutes_ago_other": "{{count}} min ago",
+  "time.hours_ago_one": "{{count}} hr ago",
+  "time.hours_ago_other": "{{count}} hr ago",
+  "time.days_ago_one": "{{count}} d ago",
+  "time.days_ago_other": "{{count}} d ago"
+}
