@@ -72,7 +72,7 @@ export function ProviderCard({ provider, selected, current, onSelect }: Provider
           {statusText}
         </span>
         {current && !selected && (
-          <span className="provider-card__current-badge">Active</span>
+          <span className="provider-card__current-badge">{t("provider.active_badge")}</span>
         )}
       </div>
       <span
