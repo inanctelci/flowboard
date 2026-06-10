@@ -98,7 +98,7 @@ export function AiProviderBadge() {
           type="button"
           className="ai-provider-badge ai-provider-badge--setup"
           onClick={() => setOpen(true)}
-          title="Pick an AI provider to power Auto-Prompt, Vision, and Planner."
+          title={t("provider.setup_tooltip")}
           aria-label={t("provider.configure_title")}
         >
           <span className="ai-provider-badge__icon" aria-hidden="true">🤖</span>

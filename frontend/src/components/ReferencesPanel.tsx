@@ -306,8 +306,8 @@ function ReferenceCard({
             e.stopPropagation();
             onTogglePin();
           }}
-          aria-label={item.pinned ? "Unpin reference" : t("panel.pin")}
-          title={item.pinned ? "Unpin" : "Pin to top"}
+          aria-label={item.pinned ? t("refs.unpin_aria") : t("panel.pin")}
+          title={item.pinned ? t("refs.unpin_title") : t("refs.pin_title")}
         >
           {item.pinned ? "★" : "☆"}
         </button>

@@ -165,6 +165,7 @@ export function AccountPanel({ collapsed = false }: { collapsed?: boolean }) {
 
   // Google Flow plan tiers — both are paid (Flowboard's hard
   // requirement). TIER_TWO = Ultra (higher tier), TIER_ONE = Pro.
+  // i18n: do-not-translate — "Ultra" and "Pro" are Google Flow plan tier brand names
   const tierLabel = tier === "PAYGATE_TIER_TWO"
     ? "Ultra"
     : tier === "PAYGATE_TIER_ONE"
@@ -178,7 +179,7 @@ export function AccountPanel({ collapsed = false }: { collapsed?: boolean }) {
           !email ? " account-panel--disconnected" : ""
         }`}
         role="region"
-        aria-label="Account"
+        aria-label={t("account.aria_label")}
       >
         {/* Avatar + cog only render when an extension session is live —
             without an email there's no profile to show and the settings
@@ -254,18 +255,18 @@ export function AccountPanel({ collapsed = false }: { collapsed?: boolean }) {
             {scanState === "no-extension" ? (
               <div className="account-panel__scan-hint" role="alert">
                 <span className="account-panel__scan-hint-title">
-                  ⚠ Extension not detected
+                  {t("account.scan_hint_title")}
                 </span>
                 <span className="account-panel__scan-hint-text">
-                  Refresh the Flow tab, then reload the Flowboard extension.
+                  {t("account.scan_hint_text")}
                 </span>
                 <button
                   type="button"
                   className="account-panel__scan-btn"
                   onClick={handleScan}
-                  title="Scan again for an extension connection"
+                  title={t("account.scan_again_title")}
                 >
-                  Try again
+                  {t("account.try_again")}
                 </button>
               </div>
             ) : (
@@ -274,9 +275,9 @@ export function AccountPanel({ collapsed = false }: { collapsed?: boolean }) {
                 className="account-panel__scan-btn"
                 onClick={handleScan}
                 disabled={scanState === "scanning"}
-                title="Scan for an extension connection and re-fetch user info"
+                title={t("account.scan_title")}
               >
-                {scanState === "scanning" ? t("account.scanning") : "🔍 Scan extension"}
+                {scanState === "scanning" ? t("account.scanning") : t("account.scan_extension")}
               </button>
             )}
           </div>
@@ -286,8 +287,8 @@ export function AccountPanel({ collapsed = false }: { collapsed?: boolean }) {
             type="button"
             className="account-panel__cog"
             onClick={() => setOpen((v) => !v)}
-            aria-label="Open settings"
-            title="Settings"
+            aria-label={t("account.open_settings")}
+            title={t("account.settings_title")}
           >
             ⚙
           </button>
@@ -323,10 +324,10 @@ export function AccountPanel({ collapsed = false }: { collapsed?: boolean }) {
           <span className="account-panel__tier-warning-icon" aria-hidden="true">⚠</span>
           <div className="account-panel__tier-warning-body">
             <span className="account-panel__tier-warning-title">
-              Tier unknown
+              {t("account.tier_unknown_title")}
             </span>
             <span className="account-panel__tier-warning-text">
-              Open Flow once so the extension can detect your plan.
+              {t("account.tier_unknown_text")}
             </span>
           </div>
           <a

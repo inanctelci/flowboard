@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Background,
   BackgroundVariant,
@@ -57,6 +58,7 @@ function DropAddPopover({
   onPick: (type: NodeType, flowPos: { x: number; y: number }) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const { screenToFlowPosition } = useReactFlow();
 
   // Auto-dismiss after 3s of no interaction so the popover doesn't linger
@@ -92,13 +94,13 @@ function DropAddPopover({
       className="drop-popover"
       style={{ left: popover.clientX + 8, top: popover.clientY + 8 }}
       role="menu"
-      aria-label="Add connected node"
+      aria-label={t("node.add_connected")}
     >
       <button type="button" className="drop-popover__btn" onClick={() => handle("image")}>
-        <span className="drop-popover__icon">▣</span> Image
+        <span className="drop-popover__icon">▣</span> {t("palette.kind.image")}
       </button>
       <button type="button" className="drop-popover__btn" onClick={() => handle("video")}>
-        <span className="drop-popover__icon">▶</span> Video
+        <span className="drop-popover__icon">▶</span> {t("palette.kind.video")}
       </button>
     </div>
   );

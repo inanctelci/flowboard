@@ -318,15 +318,15 @@ export function AiProvidersSection() {
               </div>
               <div className="selection-panel__setup-text">
                 {pendingProvider.lastError === "not_authenticated"
-                  ? "The CLI is installed but not signed in. Open Setup help for the login command."
-                  : "Install the CLI from npm and sign in. Open Setup help for the exact commands."}
+                  ? t("provider.cli_not_signed_in")
+                  : t("provider.cli_install_hint")}
               </div>
               <button
                 type="button"
                 className="selection-panel__setup-btn"
                 onClick={() => setHelpFor(pending)}
               >
-                Setup help →
+                {t("provider.setup_help")}
               </button>
             </div>
           ) : (
@@ -339,7 +339,7 @@ export function AiProvidersSection() {
             // backend — Google throttles concurrent calls per user.)
             <>
               <div className="selection-panel__heading">
-                Test the connection, then Apply
+                {t("provider.test_then_apply")}
               </div>
               <ConnectionTestRow
                 providerLabel={labelOf(pending)}
@@ -354,16 +354,16 @@ export function AiProvidersSection() {
                   disabled={!canApply}
                   title={
                     selectionUnchanged
-                      ? `${labelOf(pending)} is already active.`
+                      ? t("provider.apply_title_unchanged", { name: labelOf(pending) })
                       : !testPassed
-                        ? "Run the connection test successfully to enable Apply."
-                        : `Apply ${labelOf(pending)} to all features.`
+                        ? t("provider.apply_title_needs_test")
+                        : t("provider.apply_title_ready", { name: labelOf(pending) })
                   }
                 >
                   {applying
-                    ? "Applying…"
+                    ? t("provider.applying")
                     : selectionUnchanged
-                      ? "Already active"
+                      ? t("provider.already_active")
                       : t("settings.apply")}
                 </button>
               </div>
@@ -414,8 +414,8 @@ function ConnectionTestRow({ providerLabel, result, onTest }: ConnectionTestRowP
       : result.state === "fail" && result.error
         ? result.error
         : result.state === "testing"
-          ? "Pinging the CLI…"
-          : "Sends one tiny prompt to verify the CLI answers.";
+          ? t("provider.pinging")
+          : t("provider.test_hint");
   return (
     <div className={`feature-test-row feature-test-row--${result.state}`}>
       <span
@@ -449,9 +449,9 @@ function ConnectionTestRow({ providerLabel, result, onTest }: ConnectionTestRowP
         {result.state === "testing"
           ? t("settings.testing")
           : result.state === "ok"
-            ? "Re-test"
+            ? t("provider.retest")
             : result.state === "fail"
-              ? "Retry"
+              ? t("provider.retry")
               : t("settings.test")}
       </button>
     </div>
@@ -469,6 +469,7 @@ interface CliReferenceProps {
 }
 
 function CliReference({ provider }: CliReferenceProps) {
+  const { t } = useTranslation();
   const ref = CLI_REFERENCE[provider];
   const [copied, setCopied] = useState(false);
 
@@ -485,15 +486,15 @@ function CliReference({ provider }: CliReferenceProps) {
   return (
     <div className="cli-reference">
       <div className="cli-reference__row">
-        <span className="cli-reference__label">Install / upgrade</span>
+        <span className="cli-reference__label">{t("provider.install_upgrade")}</span>
         <code className="cli-reference__cmd">{ref.installCmd}</code>
         <button
           type="button"
           className="cli-reference__copy-btn"
           onClick={handleCopy}
-          aria-label="Copy install command"
+          aria-label={t("provider.copy_install_aria")}
         >
-          {copied ? "✓ Copied" : "Copy"}
+          {copied ? t("provider.copied") : t("provider.copy")}
         </button>
       </div>
       <a
@@ -502,7 +503,7 @@ function CliReference({ provider }: CliReferenceProps) {
         target="_blank"
         rel="noopener noreferrer"
       >
-        Open {ref.docsLabel} ↗
+        {t("provider.docs_link", { name: ref.docsLabel })}
       </a>
     </div>
   );
