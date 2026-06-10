@@ -132,7 +132,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
     if (cached !== null) return cached;
     const boardId = useBoardStore.getState().boardId;
     if (boardId === null) {
-      set({ error: "no board loaded" });
+      set({ error: i18n.t("gen.no_board_loaded") });
       return null;
     }
     try {
@@ -168,7 +168,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
     const knownTier = opts.paygateTier ?? get().paygateTier;
     if (!knownTier) {
       set({
-        error: "Open Flow once so the extension can detect your plan, then retry. (See the Tier-unknown banner in the bottom-left.)",
+        error: i18n.t("gen.tier_unknown"),
       });
       useBoardStore.getState().updateNodeData(rfId, {
         status: "error",
@@ -221,8 +221,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
               error: "no ingredients",
             });
             set({
-              error:
-                "Omni Flash needs at least one ingredient (connect an upstream Character / Image / Visual asset).",
+              error: i18n.t("gen.omni_no_ingredients"),
             });
             return;
           }
@@ -249,7 +248,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
             Array.isArray(opts.sourceMediaIds) && opts.sourceMediaIds.length > 0;
           if (!hasMulti && !opts.sourceMediaId) {
             useBoardStore.getState().updateNodeData(rfId, { status: "error", error: "no source media" });
-            set({ error: "Veo i2v requires a source image (connect an upstream image node)" });
+            set({ error: i18n.t("gen.veo_no_source") });
             return;
           }
           const videoParams: Record<string, unknown> = {
@@ -452,7 +451,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
             // generation failure.
             const errMsg =
               req.status === "timeout"
-                ? `Timed out after 5 minutes (${req.error ?? "video_timeout"})`
+                ? i18n.t("gen.timed_out", { error: req.error ?? "video_timeout" })
                 : (req.error ?? "unknown");
             useBoardStore.getState().updateNodeData(rfId, { status: "error", error: errMsg });
             set((s) => {
@@ -488,7 +487,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
             set((s) => {
               const next = { ...s.active };
               delete next[rfId];
-              return { active: next, error: `Generation poll failed: ${msg}` };
+              return { active: next, error: i18n.t("gen.poll_failed", { msg }) };
             });
             return;
           }
@@ -521,7 +520,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
     const node = useBoardStore.getState().nodes.find((n) => n.id === rfId);
     const sourceMediaId = node?.data.mediaId;
     if (!sourceMediaId) {
-      set({ error: "no source image to refine" });
+      set({ error: i18n.t("gen.no_source_to_refine") });
       return;
     }
 
@@ -633,7 +632,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
         // user can tell auto-timeout apart from a real failure.
         const errMsg =
           req.status === "timeout"
-            ? `Timed out after 5 minutes (${req.error ?? "video_timeout"})`
+            ? i18n.t("gen.timed_out", { error: req.error ?? "video_timeout" })
             : (req.error ?? "refine failed");
         useBoardStore.getState().updateNodeData(rfId, {
           status: "error",
