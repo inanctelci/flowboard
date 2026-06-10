@@ -412,5 +412,8 @@
   "node.add_connected": "Add connected node",
   "refs.unpin_aria": "Unpin reference",
   "refs.unpin_title": "Unpin",
-  "refs.pin_title": "Pin to top"
+  "refs.pin_title": "Pin to top",
+  "settings.language_section_label": "Language",
+  "settings.language_picker_aria": "Choose interface language",
+  "settings.language_picker_desc": "Choose the language Flowboard's UI is displayed in."
 }

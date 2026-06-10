@@ -412,5 +412,8 @@
   "node.add_connected": "Bağlı düğüm ekle",
   "refs.unpin_aria": "Referansın sabitlemesini kaldır",
   "refs.unpin_title": "Sabitlemeyi kaldır",
-  "refs.pin_title": "En üste sabitle"
+  "refs.pin_title": "En üste sabitle",
+  "settings.language_section_label": "Dil",
+  "settings.language_picker_aria": "Arayüz dilini seç",
+  "settings.language_picker_desc": "Flowboard arayüzünün dilini seçin."
 }
