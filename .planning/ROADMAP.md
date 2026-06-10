@@ -30,7 +30,10 @@
   3. `ResultViewer` relative-time display shows English phrases (not Vietnamese) for all users — confirming BUGS-01 rewrite landed.
   4. With the browser locale set to `tr-TR` in DevTools, triggering a backend error that traverses `humanizeBackendError` does not corrupt the `startsWith("public_error_")` match — confirming the BUGS-02 dotted-i fix.
   5. Maintainer has a written string inventory (grep output or doc) listing every non-JSX string site (aria-labels, store errors, utility functions, activity-meta labels) to use as Phase 2 checklist.
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 01-01-PLAN.md — i18n layer wiring (deps + i18n module + provider + Settings store + App.tsx lang effect) + BUGS-01 (Vietnamese rewrite in ResultViewer formatRelativeTime) + BUGS-02 (dotted-i fix in humanizeBackendError) + BUGS-03 (html lang sync)
+- [ ] 01-02-PLAN.md — String inventory audit at .planning/phases/01-infra-audit/STRING-INVENTORY.md: per-file enumeration of every user-visible string site in frontend/src/ by Kind, with proposed i18n keys and explicit do-not-translate flags for product names and user-authored data (Phase 2 extraction checklist)
 
 ---
 
@@ -117,4 +120,4 @@
 
 ---
 
-*Last updated: 2026-06-10 — Roadmap created*
+*Last updated: 2026-06-10 — Phase 1 plans created (01-01-PLAN.md i18n layer + bug fixes, 01-02-PLAN.md string inventory audit)*
