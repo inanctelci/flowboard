@@ -319,7 +319,7 @@ function ReferenceCard({
             setRenaming(true);
           }}
           aria-label={t("panel.rename")}
-          title="Rename"
+          title={t("refs.rename_title")}
         >
           ✎
         </button>
@@ -333,16 +333,16 @@ function ReferenceCard({
           disabled={deleting}
           aria-label={
             confirmDelete
-              ? "Confirm delete reference"
+              ? t("refs.confirm_delete_aria")
               : t("panel.delete")
           }
           title={
             confirmDelete
-              ? "Click again to confirm — auto-cancels in 3s"
+              ? t("refs.confirm_delete_title")
               : "Delete (underlying image stays in storage)"
           }
         >
-          {deleting ? "…" : confirmDelete ? "Confirm?" : "🗑"}
+          {deleting ? "…" : confirmDelete ? t("refs.confirm_question") : "🗑"}
         </button>
       </div>
     </li>

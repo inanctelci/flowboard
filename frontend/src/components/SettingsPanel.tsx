@@ -341,9 +341,7 @@ export function SettingsPanel({ open, onClose, onLogout, logoutPending }: Settin
               {logoutPending ? t("settings.signing_out") : t("settings.sign_out")}
             </button>
             <div className="settings-panel__hint">
-              Clears the cached identity and tells the extension to drop
-              its in-memory token. The WebSocket stays open so signing
-              back in doesn't require a Chrome restart.
+              {t("settings.logout_hint")}
             </div>
           </div>
         )}

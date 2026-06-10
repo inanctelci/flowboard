@@ -415,5 +415,12 @@
   "refs.pin_title": "En üste sabitle",
   "settings.language_section_label": "Dil",
   "settings.language_picker_aria": "Arayüz dilini seç",
-  "settings.language_picker_desc": "Flowboard arayüzünün dilini seçin."
+  "settings.language_picker_desc": "Flowboard arayüzünün dilini seçin.",
+  "provider.setup_ai_cta": "AI'yı Kur",
+  "provider.active_badge": "Aktif",
+  "settings.logout_hint": "Önbelleğe alınmış kimliği temizler ve eklentiye bellek içi token'ı bırakmasını bildirir. WebSocket bağlantısı açık kalır, dolayısıyla tekrar giriş yapmak için Chrome'u yeniden başlatmak gerekmez.",
+  "refs.rename_title": "Yeniden Adlandır",
+  "refs.confirm_delete_aria": "Referansı silmeyi onayla",
+  "refs.confirm_delete_title": "Onaylamak için tekrar tıklayın — 3 saniye sonra iptal edilir",
+  "refs.confirm_question": "Emin misin?"
 }

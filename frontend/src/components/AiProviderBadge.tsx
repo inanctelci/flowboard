@@ -102,7 +102,7 @@ export function AiProviderBadge() {
           aria-label={t("provider.configure_title")}
         >
           <span className="ai-provider-badge__icon" aria-hidden="true">🤖</span>
-          <span className="ai-provider-badge__label">Setup AI</span>
+          <span className="ai-provider-badge__label">{t("provider.setup_ai_cta")}</span>
           <span
             className="ai-provider-badge__status ai-provider-badge__status--warn"
             aria-hidden="true"
