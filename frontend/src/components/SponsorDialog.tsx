@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 /**
  * Sponsor entry point — top-right canvas button + modal dialog.
@@ -34,6 +35,7 @@ interface Tier {
   ringClass: string;
 }
 
+// i18n: do-not-translate (TIERS — tier labels/taglines/perks are product content data, not UI chrome)
 const TIERS: Tier[] = [
   {
     key: "coffee",
@@ -92,6 +94,7 @@ function kofiTierUrl(tier: Tier): string {
 const KOFI_URL = `https://ko-fi.com/${KOFI_USERNAME}`;
 
 export function SponsorButton() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -99,11 +102,12 @@ export function SponsorButton() {
         type="button"
         className="sponsor-trigger"
         onClick={() => setOpen(true)}
+        // i18n: do-not-translate (brand name "Flowboard" embedded in aria-label)
         aria-label="Support Flowboard"
-        title="Become a sponsor"
+        title={t("sponsor.become_sponsor")}
       >
         <span className="sponsor-trigger__heart" aria-hidden="true">♥</span>
-        <span>Sponsor</span>
+        <span>{t("sponsor.button_label")}</span>
       </button>
       <SponsorDialog open={open} onClose={() => setOpen(false)} />
     </>
@@ -116,6 +120,7 @@ interface SponsorDialogProps {
 }
 
 function SponsorDialog({ open, onClose }: SponsorDialogProps) {
+  const { t } = useTranslation();
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -148,20 +153,19 @@ function SponsorDialog({ open, onClose }: SponsorDialogProps) {
           type="button"
           className="sponsor-dialog__close"
           onClick={onClose}
-          aria-label="Close sponsor dialog"
+          aria-label={t("sponsor.close")}
         >
           ×
         </button>
 
         <div className="sponsor-dialog__header">
-          <div className="sponsor-dialog__eyebrow">SUPPORT THE PROJECT</div>
+          <div className="sponsor-dialog__eyebrow">{t("sponsor.eyebrow")}</div>
+          {/* i18n: do-not-translate (brand name "Flowboard" in title value) */}
           <h2 id="sponsor-dialog-title" className="sponsor-dialog__title">
-            Sponsor Flowboard
+            {t("sponsor.title")}
           </h2>
           <p className="sponsor-dialog__subtitle">
-            Become a sponsor and appear in the top of our Git repository.
-            Your name (and logo at higher tiers) is credited in the README
-            and the in-app sponsors panel.
+            {t("sponsor.subtitle")}
           </p>
         </div>
 
@@ -177,6 +181,7 @@ function SponsorDialog({ open, onClose }: SponsorDialogProps) {
               <div className="sponsor-tier__icon" aria-hidden="true">
                 {tier.icon}
               </div>
+              {/* i18n: do-not-translate (tier.label, tier.tagline, tier.perks — product content data) */}
               <div className="sponsor-tier__name">{tier.label}</div>
               <div className="sponsor-tier__amount">
                 <span className="sponsor-tier__currency">$</span>
@@ -188,22 +193,26 @@ function SponsorDialog({ open, onClose }: SponsorDialogProps) {
                   <li key={p}>{p}</li>
                 ))}
               </ul>
-              <div className="sponsor-tier__cta">Tip with Ko-fi →</div>
+              {/* i18n: do-not-translate (brand "Ko-fi" embedded) */}
+              <div className="sponsor-tier__cta">{t("sponsor.tip_kofi")}</div>
             </a>
           ))}
         </div>
 
         <div className="sponsor-dialog__footer">
           <div className="sponsor-dialog__paypal">
+            {/* i18n: do-not-translate (brand "Ko-fi" in link text) */}
             <a
               className="sponsor-dialog__kofi"
               href={KOFI_URL}
               target="_blank"
               rel="noopener noreferrer"
             >
-              ☕ Open Ko-fi page
+              {t("sponsor.open_kofi")}
             </a>
-            <span className="sponsor-dialog__or">or send to PayPal</span>
+            {/* i18n: do-not-translate (brand "PayPal" embedded) */}
+            <span className="sponsor-dialog__or">{t("sponsor.or_paypal")}</span>
+            {/* i18n: do-not-translate (contact email — maintainer data) */}
             <code className="sponsor-dialog__paypal-email">{PAYPAL_EMAIL}</code>
             <button
               type="button"
@@ -211,16 +220,16 @@ function SponsorDialog({ open, onClose }: SponsorDialogProps) {
               onClick={() => {
                 navigator.clipboard?.writeText(PAYPAL_EMAIL).catch(() => {});
               }}
-              title="Copy email"
+              title={t("sponsor.copy_email_title")}
             >
-              Copy
+              {t("sponsor.copy")}
             </button>
           </div>
           <p className="sponsor-dialog__fineprint">
-            Payments go directly to the maintainer. After Ko-fi (or
-            PayPal) confirms, email the receipt + your preferred
-            display name to <code>{PAYPAL_EMAIL}</code> and we'll add
-            you to the README within 48 hours.
+            {t("sponsor.fineprint_prefix")}{" "}
+            {/* i18n: do-not-translate (maintainer contact email) */}
+            <code>{PAYPAL_EMAIL}</code>{" "}
+            {t("sponsor.fineprint_suffix")}
           </p>
         </div>
       </div>

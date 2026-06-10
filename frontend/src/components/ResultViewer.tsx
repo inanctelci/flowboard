@@ -328,11 +328,12 @@ export function ResultViewer() {
 
   let hintText: string;
   if (status === null) {
-    hintText = "Loading…";
+    hintText = t("result.loading");
   } else if (!status.has_url) {
-    hintText = "Open your project on labs.google/flow so Flowboard can capture the image URL.";
+    // i18n: do-not-translate (brand "Flowboard" embedded in value)
+    hintText = t("result.no_url_hint");
   } else {
-    hintText = "Fetching bytes from Google…";
+    hintText = t("result.fetching_bytes");
   }
 
   // Blocks the three generation-flow buttons (Edit prompt, Regenerate,
@@ -374,7 +375,7 @@ export function ResultViewer() {
       ).filter((m): m is string => typeof m === "string" && m.length > 0);
       if (sourceMediaIds.length === 0) {
         useGenerationStore.setState({
-          error: "Video re-gen needs an upstream image with rendered media.",
+          error: i18n.t("result.video_regen_needs_upstream"),
         });
         return;
       }
@@ -475,7 +476,7 @@ export function ResultViewer() {
           <div
             className="media-placeholder"
             role={mediaReady ? undefined : "img"}
-            aria-label={mediaReady ? undefined : `${data.title} — media pending`}
+            aria-label={mediaReady ? undefined : t("result.media_pending", { title: data.title })}
           >
             {currentMediaId ? (
               <>
@@ -496,7 +497,7 @@ export function ResultViewer() {
                     className="media-placeholder__img"
                     style={mediaReady ? undefined : { display: "none" }}
                     src={mediaUrl(currentMediaId) + cacheBust}
-                    alt={data.title as string}
+                    alt={data.title as string /* i18n: do-not-translate (USER DATA — node title) */}
                     onError={onImgError}
                     onLoad={onImgLoad}
                   />
@@ -506,7 +507,9 @@ export function ResultViewer() {
                     <span className="media-placeholder__icon" aria-hidden="true">
                       {ICON[data.type] ?? "□"}
                     </span>
+                    {/* i18n: do-not-translate (data.title — USER DATA, node title) */}
                     <span className="media-placeholder__title">{data.title}</span>
+                    {/* i18n: do-not-translate (shortMediaId — technical debug string) */}
                     <span className="media-placeholder__id">media_id: {shortMediaId}</span>
                   </div>
                 )}
@@ -518,13 +521,11 @@ export function ResultViewer() {
               // whether to retry, change inputs, or accept the loss.
               <div className="media-placeholder__content media-placeholder__content--blocked">
                 <span className="media-placeholder__icon media-placeholder__icon--warn" aria-hidden="true">⚠</span>
-                <span className="media-placeholder__title">Variant blocked</span>
+                <span className="media-placeholder__title">{t("result.variant_blocked")}</span>
+                {/* i18n: do-not-translate (slotError — technical error code from API) */}
                 <span className="media-placeholder__error-code">{slotError}</span>
                 <span className="media-placeholder__error-hint">
-                  This variant was rejected by Google&apos;s safety filter. The
-                  other variants in this batch rendered normally — try
-                  re-running just this slot, or tweak the upstream image /
-                  prompt to avoid the trigger.
+                  {t("result.variant_blocked_hint")}
                 </span>
               </div>
             ) : (
@@ -532,7 +533,9 @@ export function ResultViewer() {
                 <span className="media-placeholder__icon" aria-hidden="true">
                   {ICON[data.type] ?? "□"}
                 </span>
+                {/* i18n: do-not-translate (data.title — USER DATA, node title) */}
                 <span className="media-placeholder__title">{data.title}</span>
+                {/* i18n: do-not-translate (shortMediaId — technical debug string) */}
                 <span className="media-placeholder__id">media_id: {shortMediaId}</span>
               </div>
             )}
@@ -545,7 +548,7 @@ export function ResultViewer() {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {currentMediaId && (
               <button className="media-placeholder__refresh" onClick={handleRefresh}>
-                Refresh
+                {t("result.refresh")}
               </button>
             )}
             {/* Variant switcher — chips for each slot. Blocked slots
@@ -553,7 +556,7 @@ export function ResultViewer() {
                 the user can scan the strip and see at a glance which
                 variants succeeded vs failed. */}
             {mediaIds.length > 0 && (
-              <div className="variant-switcher" role="group" aria-label="Variant selection">
+              <div className="variant-switcher" role="group" aria-label={t("result.variant_selection")}>
                 {mediaIds.map((_id, idx) => {
                   const chipError = data?.slotErrors?.[idx] ?? null;
                   const blocked = chipError !== null && chipError !== undefined;
@@ -562,8 +565,8 @@ export function ResultViewer() {
                       key={idx}
                       className={`variant-switcher__chip${idx === activeIdx ? " variant-switcher__chip--active" : ""}${blocked ? " variant-switcher__chip--blocked" : ""}`}
                       onClick={() => setActiveIdx(idx)}
-                      aria-label={blocked ? `Variant ${idx + 1} — blocked: ${chipError}` : `Variant ${idx + 1}`}
-                      title={blocked ? `Blocked: ${chipError}` : undefined}
+                      aria-label={blocked ? t("result.variant_blocked_label", { n: idx + 1, error: chipError }) : t("result.variant_n", { n: idx + 1 })}
+                      title={blocked ? t("result.blocked_title", { error: chipError }) : undefined}
                       aria-pressed={idx === activeIdx}
                     >
                       {blocked ? "⚠" : idx + 1}
@@ -577,8 +580,9 @@ export function ResultViewer() {
 
         {/* Right panel — metadata */}
         <div className="result-viewer__right">
-          <div className="result-viewer__status-pill">Rendered</div>
+          <div className="result-viewer__status-pill">{t("result.rendered_status")}</div>
 
+          {/* i18n: do-not-translate (data.title — USER DATA, node title) */}
           <h2 id="result-viewer-title" className="result-viewer__node-title">
             {data.title}
           </h2>
@@ -586,22 +590,23 @@ export function ResultViewer() {
 
           <hr className="result-viewer__divider" />
 
-          <span className="result-viewer__section-label">PROMPT</span>
-          <p className="result-viewer__prompt">{data.prompt ?? "(no prompt)"}</p>
+          <span className="result-viewer__section-label">{t("result.section_prompt")}</span>
+          {/* i18n: do-not-translate (data.prompt — USER DATA) */}
+          <p className="result-viewer__prompt">{data.prompt ?? t("result.no_prompt")}</p>
           <button
             className="result-viewer__edit-prompt"
             onClick={handleEditPrompt}
             disabled={llmBusy}
-            title={llmBusy ? "Backend is composing — try again in a moment" : undefined}
+            title={llmBusy ? t("result.composing_wait") : undefined}
           >
-            Edit prompt →
+            {t("result.edit_prompt")}
           </button>
 
           {refSourceNodes.length > 0 && (
             <>
               <hr className="result-viewer__divider" />
               <span className="result-viewer__section-label">
-                SOURCE REFERENCES ({refSourceNodes.length})
+                {t("result.source_refs_label", { count: refSourceNodes.length })}
               </span>
               <div className="ref-source-row">
                 {refSourceNodes.map((r) => (
@@ -610,14 +615,16 @@ export function ResultViewer() {
                     className="ref-source-chip"
                     title={
                       r.variantIdx !== null
+                        // i18n: do-not-translate (r.node.data.title — USER DATA; "variant N" label pattern)
                         ? `${r.node.data.title} — variant ${r.variantIdx + 1}`
+                        // i18n: do-not-translate (r.node.data.title — USER DATA)
                         : r.node.data.title
                     }
                   >
                     <img
                       className="ref-source-chip__img"
                       src={mediaUrl(r.mediaId)}
-                      alt={r.node.data.title}
+                      alt={r.node.data.title /* i18n: do-not-translate (USER DATA) */}
                     />
                     {r.variantIdx !== null && (
                       <span className="ref-source-chip__variant">
@@ -635,10 +642,11 @@ export function ResultViewer() {
 
           <hr className="result-viewer__divider" />
 
-          <span className="result-viewer__section-label">METADATA</span>
+          <span className="result-viewer__section-label">{t("result.section_metadata")}</span>
           <dl className="result-viewer__metadata-grid">
-            <dt>model</dt>
+            <dt>{t("result.meta_model")}</dt>
             <dd>
+              {/* i18n: do-not-translate (metadataModel.label — brand model name) */}
               {metadataModel.isBadge ? (
                 <span className="model-badge">{metadataModel.label}</span>
               ) : (
@@ -647,7 +655,7 @@ export function ResultViewer() {
             </dd>
             {data?.type === "character" && localizedCountryLabel(data.charCountry) && (
               <>
-                <dt>country</dt>
+                <dt>{t("result.meta_country")}</dt>
                 <dd>
                   <span className="model-badge">{localizedCountryLabel(data.charCountry)}</span>
                 </dd>
@@ -655,15 +663,15 @@ export function ResultViewer() {
             )}
             {data?.type === "character" && localizedVibeLabel(data.charVibe) && (
               <>
-                <dt>vibe</dt>
+                <dt>{t("result.meta_vibe")}</dt>
                 <dd>
                   <span className="model-badge">{localizedVibeLabel(data.charVibe)}</span>
                 </dd>
               </>
             )}
-            <dt>aspect</dt>
+            <dt>{t("result.meta_aspect")}</dt>
             <dd>{formatAspectRatio(data?.aspectRatio)}</dd>
-            <dt>time</dt>
+            <dt>{t("result.meta_time")}</dt>
             <dd>{formatRelativeTime(data?.renderedAt, t, i18n.resolvedLanguage ?? "en")}</dd>
           </dl>
 
@@ -674,17 +682,17 @@ export function ResultViewer() {
               <div className="result-viewer__busy-banner" role="status">
                 <span className="node-header__llm-spinner" aria-hidden="true" />
                 {data?.autoPromptStatus === "pending"
-                  ? "Composing prompt — actions disabled until done"
-                  : "Analyzing image — actions disabled until done"}
+                  ? t("result.composing_actions_disabled")
+                  : t("result.analyzing_actions_disabled")}
               </div>
             )}
             <button
               className="result-viewer__btn result-viewer__btn--primary"
               onClick={handleRegenerate}
               disabled={llmBusy}
-              title={llmBusy ? "Backend is busy on this node — try again in a moment" : undefined}
+              title={llmBusy ? t("result.backend_busy") : undefined}
             >
-              Regenerate ⌘R
+              {t("result.regenerate_kbd")}
             </button>
             <button
               className="result-viewer__btn"
@@ -692,11 +700,11 @@ export function ResultViewer() {
               disabled={llmBusy}
               title={
                 llmBusy
-                  ? "Backend is busy on this node — try again in a moment"
-                  : "Clone this node onto the canvas with the same upstream refs"
+                  ? t("result.backend_busy")
+                  : t("result.clone_title")
               }
             >
-              New variant +
+              {t("result.new_variant")}
             </button>
             <button
               className={
@@ -707,11 +715,12 @@ export function ResultViewer() {
               disabled={!currentMediaId || saving}
               title={
                 !currentMediaId
-                  ? "Wait for the generation to finish"
-                  : "Save this variant to the cross-board Reference library"
+                  ? t("result.wait_for_gen")
+                  : t("result.save_ref_library")
               }
             >
-              {savedFlash ? "★ Saved" : saving ? "…" : "★ Save to library"}
+              {/* i18n: do-not-translate (saving "…" — loading ellipsis, not translatable) */}
+              {savedFlash ? t("result.saved") : saving ? "…" : t("result.save_to_library")}
             </button>
             {projectId ? (
               <a
@@ -720,11 +729,13 @@ export function ResultViewer() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Open in Flow ↗
+                {/* i18n: do-not-translate (brand "Flow" embedded in link text) */}
+                {t("result.open_in_flow")}
               </a>
             ) : (
               <button className="result-viewer__btn" disabled>
-                Open in Flow ↗
+                {/* i18n: do-not-translate (brand "Flow" embedded in button text) */}
+                {t("result.open_in_flow")}
               </button>
             )}
           </div>
@@ -732,14 +743,14 @@ export function ResultViewer() {
 
         {/* Footer hint */}
         <div className="result-viewer__footer-hint">
-          esc close · ←/→ variants
+          {t("result.footer_hint")}
         </div>
 
         {/* Close button */}
         <button
           className="result-viewer__close"
           onClick={closeResultViewer}
-          aria-label="Close result viewer"
+          aria-label={t("result.close")}
         >
           ×
         </button>

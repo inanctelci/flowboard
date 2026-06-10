@@ -29,13 +29,13 @@ All requirements are atomic, user-centric (or maintainer-centric where the
 
 ### String Extraction — English Baseline (EXTRACT)
 
-- [ ] **EXTRACT-01**: All user-visible strings in JSX text nodes across `frontend/src/canvas/`, `frontend/src/components/`, `frontend/src/dialogs/`, and any other `frontend/src/**/*.tsx` are wrapped with `t()` or `<Trans>` and have keys in `en.json`
-- [ ] **EXTRACT-02**: All user-visible strings on JSX attribute props (`aria-label`, `title`, `placeholder`, `alt`) across the same scope are extracted to `en.json`
+- [x] **EXTRACT-01**: All user-visible strings in JSX text nodes across `frontend/src/canvas/`, `frontend/src/components/`, `frontend/src/dialogs/`, and any other `frontend/src/**/*.tsx` are wrapped with `t()` or `<Trans>` and have keys in `en.json`
+- [x] **EXTRACT-02**: All user-visible strings on JSX attribute props (`aria-label`, `title`, `placeholder`, `alt`) across the same scope are extracted to `en.json`
 - [ ] **EXTRACT-03**: All user-visible strings constructed in non-component code paths — Zustand store actions, the toast/error pipeline, the activity-meta label set, the rewritten `formatRelativeTime` — use the headless `i18n.t()` singleton with keys in `en.json`
 - [ ] **EXTRACT-04**: `humanizeBackendError` user-visible branches in `frontend/src/api/client.ts` are translated via `i18n.t()` with keys in `en.json` (English baseline ships as the current copy)
 - [ ] **EXTRACT-05**: `activity-meta.ts` user-facing event labels are extracted to `en.json` (internal/developer metadata stays in code, not in the catalog)
-- [ ] **EXTRACT-06**: Product and model names (`Veo 3.1 Lite`, `Nano Banana Pro`, `Nano Banana 2`, and any others in `frontend/src/constants/`) remain in constants files and never enter the translation catalog
-- [ ] **EXTRACT-07**: User-authored content (node titles, prompts, ref labels, board names, chat messages) is never wrapped with `t()`
+- [x] **EXTRACT-06**: Product and model names (`Veo 3.1 Lite`, `Nano Banana Pro`, `Nano Banana 2`, and any others in `frontend/src/constants/`) remain in constants files and never enter the translation catalog
+- [x] **EXTRACT-07**: User-authored content (node titles, prompts, ref labels, board names, chat messages) is never wrapped with `t()`
 
 ### Turkish Locale (TR)
 

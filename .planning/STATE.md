@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase: 1 — Infra + Audit
+current_plan: None yet (awaiting `/gsd-plan-phase 1`)
+status: Not started
+last_updated: "2026-06-10T15:07:29.555Z"
+progress:
+  total_phases: 4
+  completed_phases: 1
+  total_plans: 7
+  completed_plans: 4
+  percent: 25
+---
+
 # Project State — Flowboard i18n Milestone
 
 **Last updated:** 2026-06-10
@@ -22,7 +38,7 @@
 **Phase goal:** Wire the i18n layer, fix live bugs, produce the extraction inventory
 
 ```
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% — 0/4 phases complete
+Progress: [██████░░░░] 57%
 ```
 
 ---
@@ -87,6 +103,7 @@ None.
 ## Session Continuity
 
 To resume this project:
+
 1. Read `.planning/PROJECT.md` for scope and constraints
 2. Read `.planning/ROADMAP.md` for phase structure and success criteria
 3. Read `.planning/REQUIREMENTS.md` for full requirement set with traceability
