@@ -1,0 +1,93 @@
+# Requirements — Flowboard i18n Milestone
+
+**Milestone:** Frontend internationalization with English + Turkish at v1
+**Last updated:** 2026-06-10
+**Source:** PROJECT.md + research/SUMMARY.md
+
+This document defines the v1 requirement set for the frontend i18n milestone.
+All requirements are atomic, user-centric (or maintainer-centric where the
+"user" is the contributor), and testable.
+
+## v1 Requirements
+
+### Infrastructure & Scaffolding (INFRA)
+
+- [ ] **INFRA-01**: User can load the app with `react-i18next@^17` + `i18next@^26` + `i18next-browser-languagedetector@^8` initialized at module scope in `frontend/src/i18n/i18n.ts` before React renders
+- [ ] **INFRA-02**: User's missing translation keys fall back to English (the default and reference locale)
+- [ ] **INFRA-03**: Developer gets a TypeScript compile error from `tsc -b --noEmit` (the existing `npm run lint` script) when calling `t('missing.key')` on a key that doesn't exist in `en.json`, via `CustomTypeOptions` declaration merging in `frontend/src/i18n/i18n.d.ts`
+- [ ] **INFRA-04**: User's locale state lives in i18next as the source of truth, with a mirror in the existing Settings Zustand store for SettingsPanel display
+- [ ] **INFRA-05**: User's chosen locale persists across reloads via localStorage under a dedicated key `flowboard.i18n.locale`
+- [ ] **INFRA-06**: User sees no first-paint flicker because all locale catalogs are bundled (not HTTP-loaded) and `i18n.init()` runs synchronously at module load
+- [ ] **INFRA-07**: Catalog files live at `frontend/src/i18n/locales/en.json` and `frontend/src/i18n/locales/tr.json` in a flat single-namespace layout
+- [ ] **INFRA-08**: Project README and a new `CONTRIBUTING-i18n.md` describe how a community contributor adds a new locale by copying `en.json`, translating values, and opening a PR
+
+### Live Bug Fixes (BUGS) — wrapped into this milestone
+
+- [ ] **BUGS-01**: `formatRelativeTime` in `frontend/src/canvas/ResultViewer.tsx` lines 60-73 is rewritten to use i18n keys instead of its current hardcoded Vietnamese strings
+- [ ] **BUGS-02**: `humanizeBackendError` in `frontend/src/api/client.ts:19` uses locale-safe case conversion (e.g., `.toLowerCase("en-US")` or invariant-style comparison) so Turkish dotted-i does not corrupt the `startsWith("public_error_")` match
+- [ ] **BUGS-03**: `frontend/index.html` ships with `lang="en"` and an effect in `App.tsx` updates `document.documentElement.lang` whenever `i18n.resolvedLanguage` changes
+
+### String Extraction — English Baseline (EXTRACT)
+
+- [ ] **EXTRACT-01**: All user-visible strings in JSX text nodes across `frontend/src/canvas/`, `frontend/src/components/`, `frontend/src/dialogs/`, and any other `frontend/src/**/*.tsx` are wrapped with `t()` or `<Trans>` and have keys in `en.json`
+- [ ] **EXTRACT-02**: All user-visible strings on JSX attribute props (`aria-label`, `title`, `placeholder`, `alt`) across the same scope are extracted to `en.json`
+- [ ] **EXTRACT-03**: All user-visible strings constructed in non-component code paths — Zustand store actions, the toast/error pipeline, the activity-meta label set, the rewritten `formatRelativeTime` — use the headless `i18n.t()` singleton with keys in `en.json`
+- [ ] **EXTRACT-04**: `humanizeBackendError` user-visible branches in `frontend/src/api/client.ts` are translated via `i18n.t()` with keys in `en.json` (English baseline ships as the current copy)
+- [ ] **EXTRACT-05**: `activity-meta.ts` user-facing event labels are extracted to `en.json` (internal/developer metadata stays in code, not in the catalog)
+- [ ] **EXTRACT-06**: Product and model names (`Veo 3.1 Lite`, `Nano Banana Pro`, `Nano Banana 2`, and any others in `frontend/src/constants/`) remain in constants files and never enter the translation catalog
+- [ ] **EXTRACT-07**: User-authored content (node titles, prompts, ref labels, board names, chat messages) is never wrapped with `t()`
+
+### Turkish Locale (TR)
+
+- [ ] **TR-01**: `frontend/src/i18n/locales/tr.json` exists at full key parity with `en.json` (every key in `en.json` has a Turkish value; no missing keys)
+- [ ] **TR-02**: All Turkish translations are reviewed by the maintainer as a native speaker; no machine-translation placeholders ship in v1
+- [ ] **TR-03**: Plural-needing keys use i18next's `_one` / `_other` suffix convention (Turkish plural rules match English's single-plural form)
+- [ ] **TR-04**: An inventory grep confirms no remaining hardcoded user-facing English strings in `frontend/src/` outside `constants/` and the i18n module itself
+
+### Locale Switching (SWITCH)
+
+- [ ] **SWITCH-01**: On first load with no persisted locale, the app auto-detects from `navigator.language` and falls back to English if the browser language isn't English or Turkish
+- [ ] **SWITCH-02**: User can change the active language from a dropdown / selector in the existing Settings panel, listing English and Turkish by their native names (`English`, `Türkçe`)
+- [ ] **SWITCH-03**: Changing the language re-renders the entire app in the new locale without a page reload
+- [ ] **SWITCH-04**: Changing the language updates `document.documentElement.lang` for screen-reader correctness
+
+### Verification (VERIFY)
+
+- [ ] **VERIFY-01**: Maintainer manually runs a full generation flow (create board → upload refs → compose image → generate i2v video → cancel a run → check activity feed → trigger a backend error) end-to-end in Turkish, then switches back to English mid-session, with no console errors and no untranslated strings visible
+- [ ] **VERIFY-02**: Layout review at Turkish string lengths: no clipped buttons, broken dialog headers, or wrapped labels in canvas chrome, settings panel, generation dialog, result viewer
+- [ ] **VERIFY-03**: `npm run lint` (the `tsc -b --noEmit` script) passes with the typed-key declaration in place
+- [ ] **VERIFY-04**: `humanizeBackendError` is exercised in a tr-TR browser (DevTools sensors locale override) and the `startsWith("public_error_")` branch matches correctly — verifies the BUGS-02 fix
+
+## v2 Requirements
+
+<!-- Things research and discussion surfaced as expected by users but deferred past v1. -->
+
+- [ ] **V2-AUTO-EXTRACT**: `i18next-parser` integrated as a dev tool to scan for missed keys and report drift between `en.json` and source on demand
+- [ ] **V2-PARITY-CI**: A CI/lint script that fails when `tr.json` is missing a key present in `en.json` (today the maintainer audits this by hand)
+- [ ] **V2-ARIA-LIVE**: An `aria-live` region announces locale change to assistive tech users when SWITCH-02 fires
+- [ ] **V2-CROWDIN**: Move locale workflow to Crowdin (or Tolgee) when there are 3+ active translators or merge conflicts begin appearing
+- [ ] **V2-LOGICAL-CSS**: Audit `frontend/src/styles.css` for `margin-left` / `padding-right` and migrate to logical properties (`margin-inline-start`) so a future RTL locale is cheap
+
+## Out of Scope
+
+- **Right-to-left languages** — Turkish is LTR; no RTL locale in v1. CSS migration to logical properties is V2-LOGICAL-CSS, not blocking.
+- **More locales beyond English + Turkish** — Pluggable infra lets community contribute, but v1 ships exactly two.
+- **Backend / agent error strings and activity feed messages on the server side** — `agent/flowboard/` stays English-only for log readability. Note: this is distinct from EXTRACT-04 / EXTRACT-05 which translate the *frontend's interpretation* of server events.
+- **Chrome extension popup UI** — `extension/popup.html` stays English. Revisit if it becomes a friction point.
+- **LLM-generated content** — Auto-prompts, vision aiBriefs, planner replies, chat replies. Output language is the LLM's concern; user can ask in their own language.
+- **User-authored content** — Node titles, prompts, ref labels, board names, chat messages stay verbatim. Translating user data is wrong by definition.
+- **ICU MessageFormat** — i18next's native `_one` / `_other` plural suffix is sufficient for English + Turkish. Defer until a locale with complex plural rules (Slavic, Arabic) arrives.
+- **Locale-specific routing / paths** (`/tr/`, `/en/`) — Local-only single-user app; no SEO benefit; not building.
+- **Backend `Accept-Language` content negotiation** — Backend stays English; locale lives entirely in the frontend.
+- **Locale-aware date / number / currency formatting** — Flowboard barely shows formatted dates today. `formatRelativeTime` rewrite (BUGS-01) will use i18n keys, not `Intl.RelativeTimeFormat`. Defer richer formatting until the product uses more formatted data.
+- **Translation memory / TMS integration** — Locale JSONs live in the repo, edited by hand or by community PR.
+- **Automated frontend test coverage of i18n** — No frontend test framework exists. Don't add one just for i18n. Verification is manual + the typed-key compile-time check.
+- **Server-side rendering** — The app is a Vite SPA. No SSR concerns.
+
+## Traceability
+
+<!-- Filled by the roadmapper when phases are created. -->
+
+| REQ-ID | Phase | Notes |
+|--------|-------|-------|
+| (pending roadmap) | | |
