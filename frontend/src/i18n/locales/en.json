@@ -415,5 +415,12 @@
   "refs.pin_title": "Pin to top",
   "settings.language_section_label": "Language",
   "settings.language_picker_aria": "Choose interface language",
-  "settings.language_picker_desc": "Choose the language Flowboard's UI is displayed in."
+  "settings.language_picker_desc": "Choose the language Flowboard's UI is displayed in.",
+  "provider.setup_ai_cta": "Setup AI",
+  "provider.active_badge": "Active",
+  "settings.logout_hint": "Clears the cached identity and tells the extension to drop its in-memory token. The WebSocket stays open so signing back in doesn't require a Chrome restart.",
+  "refs.rename_title": "Rename",
+  "refs.confirm_delete_aria": "Confirm delete reference",
+  "refs.confirm_delete_title": "Click again to confirm — auto-cancels in 3s",
+  "refs.confirm_question": "Confirm?"
 }
