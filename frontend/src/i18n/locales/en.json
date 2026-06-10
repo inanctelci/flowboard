@@ -1,0 +1,20 @@
+{
+  "time.just_now": "just now",
+  "time.seconds_ago_one": "{{count}}s ago",
+  "time.seconds_ago_other": "{{count}}s ago",
+  "time.minutes_ago_one": "{{count}} min ago",
+  "time.minutes_ago_other": "{{count}} min ago",
+  "time.hours_ago_one": "{{count}} hr ago",
+  "time.hours_ago_other": "{{count}} hr ago",
+  "time.days_ago_one": "{{count}} d ago",
+  "time.days_ago_other": "{{count}} d ago",
+  "palette.add_node": "Add node",
+  "palette.add_node_type": "Add {{label}} node",
+  "palette.kind.character": "Character",
+  "palette.kind.image": "Image",
+  "palette.kind.note": "Note",
+  "palette.kind.prompt": "Prompt",
+  "palette.kind.storyboard": "Storyboard",
+  "palette.kind.video": "Video",
+  "palette.visual_asset": "Visual asset"
+}
