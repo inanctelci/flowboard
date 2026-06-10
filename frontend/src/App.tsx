@@ -48,7 +48,7 @@ export function App() {
         <div className="canvas-wrap">
           <Toolbar />
           {loading && boardId === null ? (
-            <div className="canvas-loading">Loading board…</div>
+            <div className="canvas-loading">{t("app.loading_board")}</div>
           ) : (
             <>
               <Board />
