@@ -86,8 +86,37 @@ All requirements are atomic, user-centric (or maintainer-centric where the
 
 ## Traceability
 
-<!-- Filled by the roadmapper when phases are created. -->
+<!-- Updated by roadmapper: 2026-06-10 -->
 
 | REQ-ID | Phase | Notes |
 |--------|-------|-------|
-| (pending roadmap) | | |
+| INFRA-01 | Phase 1: Infra + Audit | Package install + i18n.ts module-scope init |
+| INFRA-02 | Phase 1: Infra + Audit | fallbackLng: "en" configured in i18n.ts |
+| INFRA-03 | Phase 1: Infra + Audit | CustomTypeOptions in i18next.d.ts; empty en.json scaffold |
+| INFRA-04 | Phase 1: Infra + Audit | Zustand settings store locale field + setLocale() |
+| INFRA-05 | Phase 1: Infra + Audit | LanguageDetector configured with flowboard.i18n.locale key |
+| INFRA-06 | Phase 1: Infra + Audit | Static JSON imports; synchronous init; no i18next-http-backend |
+| INFRA-07 | Phase 1: Infra + Audit | Directory scaffold: frontend/src/i18n/locales/en.json + tr.json |
+| INFRA-08 | Phase 4: Polish + Verify | Contributor docs written after en.json key shape is frozen |
+| BUGS-01 | Phase 1: Infra + Audit | formatRelativeTime rewrite — must precede key assignment in Phase 2 |
+| BUGS-02 | Phase 1: Infra + Audit | .toLocaleLowerCase("en-US") fix in api/client.ts:19 |
+| BUGS-03 | Phase 1: Infra + Audit | document.documentElement.lang effect in App.tsx |
+| EXTRACT-01 | Phase 2: English Extraction | JSX text nodes across canvas/, components/, dialogs/ |
+| EXTRACT-02 | Phase 2: English Extraction | aria-label, title, placeholder, alt attribute extraction |
+| EXTRACT-03 | Phase 2: English Extraction | Store actions + utility functions use i18n.t() singleton |
+| EXTRACT-04 | Phase 2: English Extraction | humanizeBackendError branches use i18n.t() with en.json keys |
+| EXTRACT-05 | Phase 2: English Extraction | activity-meta.ts event labels extracted to en.json |
+| EXTRACT-06 | Phase 2: English Extraction | Product/model names confirmed as constants; zero entries in en.json |
+| EXTRACT-07 | Phase 2: English Extraction | User-authored content (data.title, data.prompt, etc.) never wrapped |
+| TR-01 | Phase 3: Turkish + Switcher | tr.json at full key parity with en.json |
+| TR-02 | Phase 3: Turkish + Switcher | Maintainer native-speaker review; no machine-translation placeholders |
+| TR-03 | Phase 3: Turkish + Switcher | _one / _other plural suffix convention for count-bearing keys |
+| TR-04 | Phase 3: Turkish + Switcher | Inventory grep confirms zero remaining hardcoded English strings |
+| SWITCH-01 | Phase 3: Turkish + Switcher | navigator.language auto-detect; fallback to English for unsupported |
+| SWITCH-02 | Phase 3: Turkish + Switcher | SettingsPanel dropdown listing English + Türkçe by native names |
+| SWITCH-03 | Phase 3: Turkish + Switcher | i18n.changeLanguage() re-renders all useTranslation() consumers |
+| SWITCH-04 | Phase 3: Turkish + Switcher | document.documentElement.lang updated on language change |
+| VERIFY-01 | Phase 4: Polish + Verify | End-to-end manual generation flow in Turkish + switch back |
+| VERIFY-02 | Phase 4: Polish + Verify | Layout review at 1280x800 in Turkish; no clipped/broken elements |
+| VERIFY-03 | Phase 4: Polish + Verify | npm run lint (tsc -b --noEmit) passes with typed-key declaration |
+| VERIFY-04 | Phase 4: Polish + Verify | humanizeBackendError exercised in tr-TR DevTools; branch matches |
