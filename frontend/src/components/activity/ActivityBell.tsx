@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { cancelActivity } from "../../api/client";
 import { ActivityDropdown } from "./ActivityDropdown";
 import { ActivityDetailModal } from "./ActivityDetailModal";
@@ -16,6 +17,7 @@ import { useActivityFeed } from "./useActivityFeed";
  */
 
 export function ActivityBell() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
   const feed = useActivityFeed(open);
@@ -59,13 +61,13 @@ export function ActivityBell() {
             feed.runningCount > 0 ? " activity-bell--pulse" : ""
           }${feed.unreadCount > 0 ? " activity-bell--alert" : ""}`}
           onClick={toggle}
-          aria-label={`Activity (${feed.unreadCount} unread)`}
+          aria-label={t("activity.bell_aria", { count: feed.unreadCount })}
           title={
             feed.unreadCount === 0
-              ? "Activity"
+              ? t("activity.bell_label")
               : feed.hasFailed
-                ? `${feed.unreadCount} unread (failed) — click to review`
-                : `${feed.runningCount} running`
+                ? t("activity.bell_title_failed", { count: feed.unreadCount })
+                : t("activity.bell_title_running", { count: feed.runningCount })
           }
         >
           <BellIcon size={18} />
