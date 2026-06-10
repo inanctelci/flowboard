@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getActivityDetail, type ActivityDetail } from "../../api/client";
 import { formatDuration, metaFor, statusMeta } from "./activity-meta";
 
@@ -14,6 +15,7 @@ interface JsonSectionProps {
 }
 
 function JsonSection({ label, data, startOpen = false }: JsonSectionProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(startOpen);
   const [copied, setCopied] = useState(false);
   const isEmpty =
@@ -45,14 +47,14 @@ function JsonSection({ label, data, startOpen = false }: JsonSectionProps) {
         </span>
         <span className="activity-detail__section-label">{label}</span>
         {isEmpty ? (
-          <span className="activity-detail__section-empty">(empty)</span>
+          <span className="activity-detail__section-empty">{t("activity.detail_empty")}</span>
         ) : (
           <button
             type="button"
             className="activity-detail__copy-btn"
             onClick={handleCopy}
           >
-            {copied ? "✓ Copied" : "Copy"}
+            {copied ? t("activity.detail_copied") : t("activity.detail_copy")}
           </button>
         )}
       </button>
@@ -64,6 +66,7 @@ function JsonSection({ label, data, startOpen = false }: JsonSectionProps) {
 }
 
 export function ActivityDetailModal({ activityId, onClose }: ActivityDetailModalProps) {
+  const { t } = useTranslation();
   const [detail, setDetail] = useState<ActivityDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -107,14 +110,14 @@ export function ActivityDetailModal({ activityId, onClose }: ActivityDetailModal
         <div className="activity-detail__header">
           <span className="activity-detail__title">
             {detail
-              ? `Activity #${detail.id} — ${metaFor(detail.type).label}`
-              : "Loading…"}
+              ? t("activity.detail_heading", { id: detail.id, label: metaFor(detail.type).label })
+              : t("activity.detail_loading")}
           </span>
           <button
             type="button"
             className="activity-detail__close"
             onClick={onClose}
-            aria-label="Close detail"
+            aria-label={t("activity.detail_close")}
           >
             ×
           </button>
@@ -122,14 +125,14 @@ export function ActivityDetailModal({ activityId, onClose }: ActivityDetailModal
 
         {error && (
           <div className="activity-detail__error" role="alert">
-            ⚠ Couldn't load: {error}
+            ⚠ {t("activity.detail_load_error", { error })}
           </div>
         )}
 
         {detail && (
           <>
             <dl className="activity-detail__meta">
-              <dt>Status</dt>
+              <dt>{t("activity.detail_field_status")}</dt>
               <dd>
                 <span
                   className={`activity-detail__status activity-detail__status--${
@@ -141,15 +144,15 @@ export function ActivityDetailModal({ activityId, onClose }: ActivityDetailModal
               </dd>
               {detail.node_short_id && (
                 <>
-                  <dt>Node</dt>
+                  <dt>{t("activity.detail_field_node")}</dt>
                   <dd>#{detail.node_short_id}</dd>
                 </>
               )}
-              <dt>Started</dt>
+              <dt>{t("activity.detail_field_started")}</dt>
               <dd>{detail.created_at}</dd>
               {detail.finished_at && (
                 <>
-                  <dt>Finished</dt>
+                  <dt>{t("activity.detail_field_finished")}</dt>
                   <dd>
                     {detail.finished_at}
                     {detail.duration_ms !== null && (
@@ -163,12 +166,12 @@ export function ActivityDetailModal({ activityId, onClose }: ActivityDetailModal
             </dl>
 
             <JsonSection
-              label="INPUT (params)"
+              label={t("activity.detail_input_section")}
               data={detail.params}
               startOpen={detail.status !== "failed"}
             />
             <JsonSection
-              label="OUTPUT (result)"
+              label={t("activity.detail_output_section")}
               data={detail.result}
               startOpen={detail.status === "done"}
             />
@@ -181,9 +184,9 @@ export function ActivityDetailModal({ activityId, onClose }: ActivityDetailModal
                 <span className="activity-detail__section-arrow" aria-hidden="true">
                   {detail.error ? "▼" : "▶"}
                 </span>
-                <span className="activity-detail__section-label">ERROR</span>
+                <span className="activity-detail__section-label">{t("activity.detail_error_section")}</span>
                 {!detail.error && (
-                  <span className="activity-detail__section-empty">(none)</span>
+                  <span className="activity-detail__section-empty">{t("activity.detail_none")}</span>
                 )}
               </div>
               {detail.error && (
