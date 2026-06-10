@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { LLMProviderName } from "../../api/client";
 
 /**
@@ -23,6 +24,7 @@ interface CommandLineProps {
 }
 
 function CommandLine({ cmd }: CommandLineProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   async function handleCopy() {
     try {
@@ -41,15 +43,16 @@ function CommandLine({ cmd }: CommandLineProps) {
         type="button"
         className="setup-modal__copy"
         onClick={handleCopy}
-        aria-label="Copy command"
+        aria-label={t("provider.copy_command")}
       >
-        {copied ? "✓ Copied" : "Copy"}
+        {copied ? t("provider.copied") : t("provider.copy")}
       </button>
     </div>
   );
 }
 
 export function ProviderSetupModal({ provider, open, onClose }: ProviderSetupModalProps) {
+  const { t } = useTranslation();
   // OpenAI is the only modal with tabs. Default to "cli" (the recommended
   // path); user can flip to "api" for the fallback.
   const [openaiTab, setOpenaiTab] = useState<"cli" | "api">("cli");
@@ -75,12 +78,12 @@ export function ProviderSetupModal({ provider, open, onClose }: ProviderSetupMod
     >
       <div className="setup-modal" role="dialog" aria-modal="true">
         <div className="setup-modal__header">
-          <span className="setup-modal__title">{titleFor(provider)}</span>
+          <span className="setup-modal__title">{titleFor(provider, t)}</span>
           <button
             type="button"
             className="setup-modal__close"
             onClick={onClose}
-            aria-label="Close setup guide"
+            aria-label={t("provider.setup_close")}
           >
             ×
           </button>
@@ -99,14 +102,14 @@ export function ProviderSetupModal({ provider, open, onClose }: ProviderSetupMod
             target="_blank"
             rel="noopener noreferrer"
           >
-            Open {labelFor(provider)} docs ↗
+            {t("provider.docs_link", { name: labelFor(provider) })}
           </a>
           <button
             type="button"
             className="setup-modal__close-btn"
             onClick={onClose}
           >
-            Close
+            {t("provider.close_btn")}
           </button>
         </div>
       </div>
@@ -115,61 +118,65 @@ export function ProviderSetupModal({ provider, open, onClose }: ProviderSetupMod
 }
 
 function ClaudeContent() {
+  const { t } = useTranslation();
   return (
     <div className="setup-modal__body">
       <p>
-        Flowboard uses your existing Claude subscription via the official
-        CLI — no API key needed.
+        {t("provider.claude_intro")}
       </p>
       <ol className="setup-modal__steps">
         <li>
-          <span className="setup-modal__step-label">Install</span>
+          <span className="setup-modal__step-label">{t("provider.step_install")}</span>
+          {/* i18n: do-not-translate (npm package name — technical identifier) */}
           <CommandLine cmd="npm install -g @anthropic-ai/claude-code" />
         </li>
         <li>
-          <span className="setup-modal__step-label">Authenticate</span>
+          <span className="setup-modal__step-label">{t("provider.step_authenticate")}</span>
+          {/* i18n: do-not-translate (CLI command) */}
           <CommandLine cmd="claude" />
           <span className="setup-modal__step-hint">
-            Opens a browser for OAuth — sign in with your Claude account.
+            {t("provider.claude_auth_hint")}
           </span>
         </li>
         <li>
-          <span className="setup-modal__step-label">Verify</span>
+          <span className="setup-modal__step-label">{t("provider.step_verify")}</span>
+          {/* i18n: do-not-translate (CLI command) */}
           <CommandLine cmd="claude --version" />
         </li>
       </ol>
       <p className="setup-modal__note">
-        Once installed + authenticated, the Claude row above flips to
-        ✓ Connected automatically (the panel polls every 30s).
+        {t("provider.claude_note")}
       </p>
     </div>
   );
 }
 
 function GeminiContent() {
+  const { t } = useTranslation();
   return (
     <div className="setup-modal__body">
       <p>
-        Flowboard uses your existing Gemini subscription via the official
-        CLI — no API key needed.
+        {t("provider.gemini_intro")}
       </p>
       <ol className="setup-modal__steps">
         <li>
-          <span className="setup-modal__step-label">Install</span>
+          <span className="setup-modal__step-label">{t("provider.step_install")}</span>
+          {/* i18n: do-not-translate (npm package name — technical identifier) */}
           <CommandLine cmd="npm install -g @google/gemini-cli" />
         </li>
         <li>
-          <span className="setup-modal__step-label">Authenticate</span>
+          <span className="setup-modal__step-label">{t("provider.step_authenticate")}</span>
+          {/* i18n: do-not-translate (CLI command) */}
           <CommandLine cmd="gemini auth login" />
         </li>
         <li>
-          <span className="setup-modal__step-label">Verify</span>
+          <span className="setup-modal__step-label">{t("provider.step_verify")}</span>
+          {/* i18n: do-not-translate (CLI command) */}
           <CommandLine cmd="gemini --version" />
         </li>
       </ol>
       <p className="setup-modal__note">
-        Once authenticated, the Gemini row will flip to ✓ Connected on
-        the next 30s poll.
+        {t("provider.gemini_note")}
       </p>
     </div>
   );
@@ -181,6 +188,7 @@ interface OpenAiContentProps {
 }
 
 function OpenAiContent({ tab, onTabChange }: OpenAiContentProps) {
+  const { t } = useTranslation();
   return (
     <div className="setup-modal__body">
       <div className="setup-modal__tabs" role="tablist">
@@ -191,7 +199,8 @@ function OpenAiContent({ tab, onTabChange }: OpenAiContentProps) {
           className={`setup-modal__tab${tab === "cli" ? " setup-modal__tab--active" : ""}`}
           onClick={() => onTabChange("cli")}
         >
-          Codex CLI (recommended)
+          {/* i18n: do-not-translate (brand "Codex CLI" embedded) */}
+          {t("provider.openai_tab_cli")}
         </button>
         <button
           type="button"
@@ -200,38 +209,41 @@ function OpenAiContent({ tab, onTabChange }: OpenAiContentProps) {
           className={`setup-modal__tab${tab === "api" ? " setup-modal__tab--active" : ""}`}
           onClick={() => onTabChange("api")}
         >
-          API key
+          {t("provider.openai_tab_api")}
         </button>
       </div>
 
       {tab === "cli" ? (
         <>
-          <p>ChatGPT Plus or Pro subscription required.</p>
+          <p>{t("provider.openai_cli_intro")}</p>
           <ol className="setup-modal__steps">
             <li>
-              <span className="setup-modal__step-label">Install</span>
+              <span className="setup-modal__step-label">{t("provider.step_install")}</span>
+              {/* i18n: do-not-translate (npm package name) */}
               <CommandLine cmd="npm install -g @openai/codex" />
             </li>
             <li>
-              <span className="setup-modal__step-label">Authenticate</span>
+              <span className="setup-modal__step-label">{t("provider.step_authenticate")}</span>
+              {/* i18n: do-not-translate (CLI command) */}
               <CommandLine cmd="codex login" />
             </li>
             <li>
-              <span className="setup-modal__step-label">Verify</span>
+              <span className="setup-modal__step-label">{t("provider.step_verify")}</span>
+              {/* i18n: do-not-translate (CLI command) */}
               <CommandLine cmd="codex --version" />
             </li>
           </ol>
           <p className="setup-modal__note">
-            If your Codex version is text-only, you can add an OpenAI API
-            key below as a Vision fallback in the OpenAI row above.
+            {t("provider.openai_cli_note")}
           </p>
         </>
       ) : (
         <>
-          <p>For users without ChatGPT Plus or Pro.</p>
+          <p>{t("provider.openai_api_intro")}</p>
           <ol className="setup-modal__steps">
             <li>
-              <span className="setup-modal__step-label">Get a key</span>
+              <span className="setup-modal__step-label">{t("provider.step_get_key")}</span>
+              {/* i18n: do-not-translate (external URL) */}
               <a
                 className="setup-modal__step-link"
                 href="https://platform.openai.com/api-keys"
@@ -242,16 +254,14 @@ function OpenAiContent({ tab, onTabChange }: OpenAiContentProps) {
               </a>
             </li>
             <li>
-              <span className="setup-modal__step-label">Save it</span>
+              <span className="setup-modal__step-label">{t("provider.step_save_key")}</span>
               <span className="setup-modal__step-hint">
-                Paste in the OpenAI row above and click Save.
+                {t("provider.openai_api_save_hint")}
               </span>
             </li>
           </ol>
           <p className="setup-modal__note">
-            The key stays in <code>~/.flowboard/secrets.json</code>{" "}
-            (mode 600, local only) and is never sent anywhere except
-            api.openai.com.
+            {t("provider.openai_api_note")}
           </p>
         </>
       )}
@@ -259,24 +269,30 @@ function OpenAiContent({ tab, onTabChange }: OpenAiContentProps) {
   );
 }
 
-function titleFor(p: LLMProviderName): string {
+function titleFor(p: LLMProviderName, t: (key: string) => string): string {
   switch (p) {
     case "claude":
-      return "🤖 Claude CLI Setup";
+      // i18n: do-not-translate (brand "Claude CLI" in title value)
+      return t("provider.setup_claude_title");
     case "gemini":
-      return "🤖 Gemini CLI Setup";
+      // i18n: do-not-translate (brand "Gemini CLI" in title value)
+      return t("provider.setup_gemini_title");
     case "openai":
-      return "🤖 OpenAI Setup";
+      // i18n: do-not-translate (brand "OpenAI" in title value)
+      return t("provider.setup_openai_title");
   }
 }
 
 function labelFor(p: LLMProviderName): string {
   switch (p) {
     case "claude":
+      // i18n: do-not-translate (brand name)
       return "Anthropic";
     case "gemini":
+      // i18n: do-not-translate (brand name)
       return "Google Gemini";
     case "openai":
+      // i18n: do-not-translate (brand name)
       return "OpenAI";
   }
 }
