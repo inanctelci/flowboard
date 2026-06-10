@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import i18n from "../i18n/i18n";
 import { ensureBoardProject, createRequest, getRequest, patchNode } from "../api/client";
 import { useBoardStore } from "./board";
 import { useSettingsStore } from "./settings";

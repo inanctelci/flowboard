@@ -1,3 +1,5 @@
+import i18n from "../i18n/i18n";
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,

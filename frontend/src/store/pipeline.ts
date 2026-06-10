@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import i18n from "../i18n/i18n";
 import { runPlan as apiRunPlan, getPipelineRun, type PipelineRunDTO } from "../api/client";
 import { useBoardStore } from "./board";
 
