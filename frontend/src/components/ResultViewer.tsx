@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useGenerationStore } from "../store/generation";
 import { useBoardStore } from "../store/board";
 import { useSettingsStore } from "../store/settings";
@@ -54,22 +55,30 @@ function formatAspectRatio(value: string | undefined): string {
   }
 }
 
-/** Format an ISO timestamp as a Vietnamese relative time string —
- *  "vừa xong", "5 phút trước", "2 giờ trước", "3 ngày trước". Falls
- *  back to "—" when the timestamp is missing or unparseable. */
-function formatRelativeTime(iso: string | undefined): string {
+/** Format an ISO timestamp as a relative time string using the active locale.
+ *  Returns "—" when the timestamp is missing or unparseable.
+ *
+ *  Pass `t` (from useTranslation) and `resolvedLanguage` (from i18n) as
+ *  parameters so the function remains a pure utility — no hook calls inside. */
+function formatRelativeTime(
+  iso: string | undefined,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  resolvedLanguage: string,
+): string {
   if (!iso) return "—";
-  const t = new Date(iso).getTime();
-  if (isNaN(t)) return "—";
-  const diffSec = Math.max(0, (Date.now() - t) / 1000);
-  if (diffSec < 60) return "vừa xong";
+  const ts = new Date(iso).getTime();
+  if (isNaN(ts)) return "—";
+  const diffSec = Math.max(0, (Date.now() - ts) / 1000);
+  if (diffSec < 60) return t("time.just_now");
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin} phút trước`;
+  if (diffMin < 60) return t("time.minutes_ago", { count: diffMin });
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr} giờ trước`;
+  if (diffHr < 24) return t("time.hours_ago", { count: diffHr });
   const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 7) return `${diffDay} ngày trước`;
-  return new Date(t).toLocaleDateString("vi-VN");
+  if (diffDay < 7) return t("time.days_ago", { count: diffDay });
+  // Long-form date: use the active locale so each user sees a
+  // date formatted in their language instead of a hardcoded locale.
+  return new Intl.DateTimeFormat(resolvedLanguage).format(new Date(ts));
 }
 
 export function ResultViewer() {
@@ -82,6 +91,7 @@ export function ResultViewer() {
   const edges = useBoardStore((s) => s.edges);
   const settingsImageModel = useSettingsStore((s) => s.imageModel);
   const settingsVideoQuality = useSettingsStore((s) => s.videoQuality);
+  const { t, i18n } = useTranslation();
 
   const [activeIdx, setActiveIdx] = useState(0);
   const [mediaReady, setMediaReady] = useState(false);
@@ -654,7 +664,7 @@ export function ResultViewer() {
             <dt>aspect</dt>
             <dd>{formatAspectRatio(data?.aspectRatio)}</dd>
             <dt>time</dt>
-            <dd>{formatRelativeTime(data?.renderedAt)}</dd>
+            <dd>{formatRelativeTime(data?.renderedAt, t, i18n.resolvedLanguage ?? "en")}</dd>
           </dl>
 
           <div className="result-viewer__actions">

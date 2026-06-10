@@ -16,7 +16,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 // Returns null when the token is unrecognised, so the caller falls through to
 // the raw message.
 function humanizeBackendError(token: string): string | null {
-  const t = token.toLowerCase();
+  const t = token.toLocaleLowerCase("en-US");
   if (t === "paygate_tier_unknown") {
     return (
       "Flowboard doesn't know your Google Flow plan tier yet — the "
