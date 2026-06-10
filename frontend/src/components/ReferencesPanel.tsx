@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { mediaUrl, type ReferenceItem } from "../api/client";
 import { useBoardStore } from "../store/board";
 import { filterReferences, useReferencesStore } from "../store/references";
@@ -18,6 +19,7 @@ import { filterReferences, useReferencesStore } from "../store/references";
  * state, which is persisted to localStorage by the store.
  */
 export function ReferencesPanel() {
+  const { t } = useTranslation();
   const items = useReferencesStore((s) => s.items);
   const loading = useReferencesStore((s) => s.loading);
   const error = useReferencesStore((s) => s.error);
@@ -37,8 +39,8 @@ export function ReferencesPanel() {
         type="button"
         className="references-panel__toggle-tab"
         onClick={togglePanel}
-        aria-label={panelOpen ? "Collapse references" : "Open references"}
-        title={panelOpen ? "Collapse library" : "Open library"}
+        aria-label={panelOpen ? t("panel.collapse_refs") : t("panel.open_refs")}
+        title={panelOpen ? t("panel.collapse_library_title") : t("panel.open_library_title")}
       >
         <span aria-hidden="true">{panelOpen ? "›" : "★"}</span>
       </button>
@@ -50,14 +52,14 @@ export function ReferencesPanel() {
       >
         <div className="references-panel__header">
           <span className="references-panel__title">
-            <span aria-hidden="true">★</span> Library
+            <span aria-hidden="true">★</span> {t("panel.library_title")}
           </span>
           <button
             type="button"
             className="references-panel__close"
             onClick={togglePanel}
-            aria-label="Collapse references panel"
-            title="Collapse"
+            aria-label={t("panel.collapse_refs_btn")}
+            title={t("panel.collapse_title")}
           >
             ›
           </button>
@@ -66,28 +68,29 @@ export function ReferencesPanel() {
         <div className="references-panel__search">
           <input
             type="text"
-            placeholder="🔍 search references…"
+            placeholder={t("panel.search_placeholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search references"
+            aria-label={t("panel.search_label")}
           />
         </div>
 
         {error && <div className="references-panel__error">{error}</div>}
 
         {loading && items.length === 0 && (
-          <div className="references-panel__empty">Loading…</div>
+          <div className="references-panel__empty">{t("panel.loading")}</div>
         )}
 
         {!loading && items.length === 0 && (
           <div className="references-panel__empty">
-            Save a variant from any image node to start your library.
+            {t("panel.empty_library")}
           </div>
         )}
 
         {!loading && items.length > 0 && filtered.length === 0 && (
           <div className="references-panel__empty">
-            No references match "{query}".
+            {/* i18n: do-not-translate — query is USER DATA (search term typed by user) */}
+            {t("panel.no_results", { query })}
           </div>
         )}
 
@@ -122,6 +125,7 @@ function ReferenceCard({
   onTogglePin,
   onDelete,
 }: ReferenceCardProps) {
+  const { t } = useTranslation();
   const [thumbBroken, setThumbBroken] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(item.label);
@@ -237,6 +241,7 @@ function ReferenceCard({
     ? `#${item.sourceNodeShortId}`
     : `#${item.id}`;
 
+  // i18n: do-not-translate — item.label is USER DATA (reference label typed by user)
   const tooltip = item.aiBrief
     ? `${item.label}\n\n${item.aiBrief}`
     : item.label;
@@ -285,6 +290,7 @@ function ReferenceCard({
             }}
           />
         ) : (
+          // i18n: do-not-translate — item.label is USER DATA
           <span className="reference-card__label">{item.label}</span>
         )}
         <span className="reference-card__id">{shortIdTag}</span>
@@ -300,7 +306,7 @@ function ReferenceCard({
             e.stopPropagation();
             onTogglePin();
           }}
-          aria-label={item.pinned ? "Unpin reference" : "Pin reference"}
+          aria-label={item.pinned ? "Unpin reference" : t("panel.pin")}
           title={item.pinned ? "Unpin" : "Pin to top"}
         >
           {item.pinned ? "★" : "☆"}
@@ -312,7 +318,7 @@ function ReferenceCard({
             e.stopPropagation();
             setRenaming(true);
           }}
-          aria-label="Rename reference"
+          aria-label={t("panel.rename")}
           title="Rename"
         >
           ✎
@@ -328,7 +334,7 @@ function ReferenceCard({
           aria-label={
             confirmDelete
               ? "Confirm delete reference"
-              : "Delete reference"
+              : t("panel.delete")
           }
           title={
             confirmDelete
