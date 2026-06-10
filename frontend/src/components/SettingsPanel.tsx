@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useGenerationStore } from "../store/generation";
 import {
   useSettingsStore,
@@ -25,16 +26,19 @@ const COMMUNITY_URL = "https://www.facebook.com/groups/flowkit.flowboard.communi
  *     localStorage; every gen_image / edit_image dispatch reads it.
  */
 
-const IMAGE_MODELS: { key: ImageModelKey; label: string; hint: string }[] = [
+// i18n: do-not-translate — brand model identifiers (Nano Banana Pro, Nano Banana 2)
+const IMAGE_MODELS: { key: ImageModelKey; label: string; hintKey: string }[] = [
   {
     key: "NANO_BANANA_PRO",
+    // i18n: do-not-translate — brand identifier
     label: "Nano Banana Pro",
-    hint: "GEM_PIX_2 — premium, higher fidelity, slightly slower",
+    hintKey: "settings.nano_banana_pro_hint",
   },
   {
     key: "NANO_BANANA_2",
+    // i18n: do-not-translate — brand identifier
     label: "Nano Banana 2",
-    hint: "NARWHAL — faster, lighter checkpoint",
+    hintKey: "settings.nano_banana_2_hint",
   },
 ];
 
@@ -45,31 +49,35 @@ const IMAGE_MODELS: { key: ImageModelKey; label: string; hint: string }[] = [
 const VIDEO_QUALITIES: {
   key: VideoQuality;
   label: string;
-  hint: string;
+  hintKey: string;
   ultraOnly: boolean;
 }[] = [
   {
     key: "lite",
+    // i18n: do-not-translate — brand identifier
     label: "Veo 3.1 Lite",
-    hint: "Fastest generation, lightest model. Applies to both 16:9 and 9:16.",
+    hintKey: "settings.veo_lite_hint",
     ultraOnly: false,
   },
   {
     key: "fast",
+    // i18n: do-not-translate — brand identifier
     label: "Veo 3.1 Fast",
-    hint: "Default — balanced fidelity and speed. Applies to both 16:9 and 9:16.",
+    hintKey: "settings.veo_fast_hint",
     ultraOnly: false,
   },
   {
     key: "quality",
+    // i18n: do-not-translate — brand identifier
     label: "Veo 3.1 Quality",
-    hint: "Highest fidelity, slowest. Best for hero shots. Applies to both 16:9 and 9:16.",
+    hintKey: "settings.veo_quality_hint",
     ultraOnly: false,
   },
   {
     key: "lite_relaxed",
+    // i18n: do-not-translate — brand identifier
     label: "Veo 3.1 Lite (Low Priority)",
-    hint: "Same Lite checkpoint, low-priority queue — 0 credits. Slower turnaround when Flow is busy.",
+    hintKey: "settings.veo_lite_relaxed_hint",
     ultraOnly: true,
   },
 ];
@@ -88,6 +96,7 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ open, onClose, onLogout, logoutPending }: SettingsPanelProps) {
+  const { t } = useTranslation();
   const tier = useGenerationStore((s) => s.paygateTier);
   const imageModel = useSettingsStore((s) => s.imageModel);
   const setImageModel = useSettingsStore((s) => s.setImageModel);
@@ -131,7 +140,7 @@ export function SettingsPanel({ open, onClose, onLogout, logoutPending }: Settin
     ? "Ultra"
     : tier === "PAYGATE_TIER_ONE"
       ? "Pro"
-      : "Detecting…";
+      : t("settings.tier_detecting");
 
   return (
     <div
@@ -146,171 +155,173 @@ export function SettingsPanel({ open, onClose, onLogout, logoutPending }: Settin
         className="settings-panel"
         role="dialog"
         aria-modal="true"
-        aria-label="Settings"
+        aria-label={t("settings.title")}
       >
         <div className="settings-panel__header">
-        <span className="settings-panel__title">Settings</span>
-        <button
-          type="button"
-          className="settings-panel__close"
-          onClick={onClose}
-          aria-label="Close settings"
-        >
-          ×
-        </button>
-      </div>
-
-      <div className="settings-panel__section">
-        <div className="settings-panel__label">Account tier</div>
-        <div className="settings-panel__value settings-panel__value--readonly">
-          {tierLabel}
-        </div>
-        <div className="settings-panel__hint">
-          Auto-detected from Google Flow when the first project loads.
-        </div>
-      </div>
-
-      {/* Single unified Video model picker — flat list of every option
-          (Veo tiers + Omni Flash). Selecting a Veo row stamps both
-          videoModel="veo" + the matching quality; selecting Omni Flash
-          stamps videoModel="omni_flash" (duration is picked per dispatch
-          in the GenerationDialog). */}
-      <div className="settings-panel__section">
-        <div className="settings-panel__label">Video model</div>
-        <div className="settings-panel__radio-group">
-          {VIDEO_QUALITIES.map((q) => {
-            const locked = q.ultraOnly && tier !== "PAYGATE_TIER_TWO";
-            const checked = videoModel === "veo" && videoQuality === q.key;
-            return (
-              <label
-                key={q.key}
-                className={`settings-panel__radio${checked ? " settings-panel__radio--active" : ""}${locked ? " settings-panel__radio--locked" : ""}`}
-              >
-                <input
-                  type="radio"
-                  name="video-model"
-                  value={`veo:${q.key}`}
-                  checked={checked}
-                  disabled={locked}
-                  onChange={() => {
-                    setVideoModel("veo");
-                    setVideoQuality(q.key);
-                  }}
-                />
-                <div>
-                  <div className="settings-panel__radio-label">
-                    {q.label}
-                    {q.ultraOnly && (
-                      <span className="model-badge">Ultra only</span>
-                    )}
-                  </div>
-                  <div className="settings-panel__radio-hint">{q.hint}</div>
-                </div>
-              </label>
-            );
-          })}
-          <label
-            className={`settings-panel__radio${videoModel === "omni_flash" ? " settings-panel__radio--active" : ""}`}
+          <span className="settings-panel__title">{t("settings.title")}</span>
+          <button
+            type="button"
+            className="settings-panel__close"
+            onClick={onClose}
+            aria-label={t("settings.close")}
           >
-            <input
-              type="radio"
-              name="video-model"
-              value="omni_flash"
-              checked={videoModel === "omni_flash"}
-              onChange={() => setVideoModel("omni_flash")}
-            />
-            <div>
-              <div className="settings-panel__radio-label">
-                Omni Flash (r2v)
-              </div>
-              <div className="settings-panel__radio-hint">
-                Reference-image to video. Variable duration (4 / 6 / 8 / 10s)
-                picked per dispatch — 15 / 20 / 25 / 30 credits. Portrait +
-                landscape supported.
-              </div>
-            </div>
-          </label>
+            ×
+          </button>
         </div>
-      </div>
 
-      <div className="settings-panel__section">
-        <div className="settings-panel__label">Image model</div>
-        <div className="settings-panel__radio-group">
-          {IMAGE_MODELS.map((m) => (
+        <div className="settings-panel__section">
+          <div className="settings-panel__label">{t("settings.account_tier")}</div>
+          <div className="settings-panel__value settings-panel__value--readonly">
+            {tierLabel}
+          </div>
+          <div className="settings-panel__hint">
+            {t("settings.tier_hint")}
+          </div>
+        </div>
+
+        {/* Single unified Video model picker — flat list of every option
+            (Veo tiers + Omni Flash). Selecting a Veo row stamps both
+            videoModel="veo" + the matching quality; selecting Omni Flash
+            stamps videoModel="omni_flash" (duration is picked per dispatch
+            in the GenerationDialog). */}
+        <div className="settings-panel__section">
+          <div className="settings-panel__label">{t("settings.video_model_label")}</div>
+          <div className="settings-panel__radio-group">
+            {VIDEO_QUALITIES.map((q) => {
+              const locked = q.ultraOnly && tier !== "PAYGATE_TIER_TWO";
+              const checked = videoModel === "veo" && videoQuality === q.key;
+              return (
+                <label
+                  key={q.key}
+                  className={`settings-panel__radio${checked ? " settings-panel__radio--active" : ""}${locked ? " settings-panel__radio--locked" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="video-model"
+                    value={`veo:${q.key}`}
+                    checked={checked}
+                    disabled={locked}
+                    onChange={() => {
+                      setVideoModel("veo");
+                      setVideoQuality(q.key);
+                    }}
+                  />
+                  <div>
+                    <div className="settings-panel__radio-label">
+                      {/* i18n: do-not-translate — brand identifier */}
+                      {q.label}
+                      {q.ultraOnly && (
+                        <span className="model-badge">{t("settings.ultra_only")}</span>
+                      )}
+                    </div>
+                    <div className="settings-panel__radio-hint">{t(q.hintKey as "settings.veo_lite_hint")}</div>
+                  </div>
+                </label>
+              );
+            })}
             <label
-              key={m.key}
-              className={`settings-panel__radio${imageModel === m.key ? " settings-panel__radio--active" : ""}`}
+              className={`settings-panel__radio${videoModel === "omni_flash" ? " settings-panel__radio--active" : ""}`}
             >
               <input
                 type="radio"
-                name="image-model"
-                value={m.key}
-                checked={imageModel === m.key}
-                onChange={() => setImageModel(m.key)}
+                name="video-model"
+                value="omni_flash"
+                checked={videoModel === "omni_flash"}
+                onChange={() => setVideoModel("omni_flash")}
               />
               <div>
-                <div className="settings-panel__radio-label">{m.label}</div>
-                <div className="settings-panel__radio-hint">{m.hint}</div>
+                <div className="settings-panel__radio-label">
+                  {/* i18n: do-not-translate — brand identifier */}
+                  Omni Flash (r2v)
+                </div>
+                <div className="settings-panel__radio-hint">
+                  {t("settings.omni_flash_hint")}
+                </div>
               </div>
             </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="settings-panel__section">
-        <div className="settings-panel__label">About</div>
-        <div className="settings-panel__about-row">
-          <span className="settings-panel__about-key">Version</span>
-          <span className="settings-panel__about-value">
-            <code>v{APP_VERSION}</code>
-            {updateAvailable && latestRelease && (
-              <a
-                className="settings-panel__update-badge"
-                href={latestRelease.htmlUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`Latest: ${latestRelease.tagName}`}
-              >
-                New version {latestRelease.tagName} →
-              </a>
-            )}
-          </span>
-        </div>
-        <div className="settings-panel__about-row">
-          <span className="settings-panel__about-key">Community</span>
-          <a
-            className="settings-panel__about-link"
-            href={COMMUNITY_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            FlowKit & Flowboard on Facebook →
-          </a>
-        </div>
-      </div>
-
-      {onLogout && (
-        // Sign out lives here (not in the AccountPanel chip) so the
-        // chip stays narrow enough for the email + status row to
-        // render without ellipsizing on default sidebar widths.
-        <div className="settings-panel__section settings-panel__section--logout">
-          <button
-            type="button"
-            className="settings-panel__logout-btn"
-            onClick={onLogout}
-            disabled={logoutPending}
-          >
-            {logoutPending ? "Signing out…" : "Sign out from Flow account"}
-          </button>
-          <div className="settings-panel__hint">
-            Clears the cached identity and tells the extension to drop
-            its in-memory token. The WebSocket stays open so signing
-            back in doesn't require a Chrome restart.
           </div>
         </div>
-      )}
+
+        <div className="settings-panel__section">
+          <div className="settings-panel__label">{t("settings.image_model_label")}</div>
+          <div className="settings-panel__radio-group">
+            {IMAGE_MODELS.map((m) => (
+              <label
+                key={m.key}
+                className={`settings-panel__radio${imageModel === m.key ? " settings-panel__radio--active" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="image-model"
+                  value={m.key}
+                  checked={imageModel === m.key}
+                  onChange={() => setImageModel(m.key)}
+                />
+                <div>
+                  <div className="settings-panel__radio-label">
+                    {/* i18n: do-not-translate — brand identifier */}
+                    {m.label}
+                  </div>
+                  <div className="settings-panel__radio-hint">{t(m.hintKey as "settings.nano_banana_pro_hint")}</div>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="settings-panel__section">
+          <div className="settings-panel__label">{t("settings.about")}</div>
+          <div className="settings-panel__about-row">
+            <span className="settings-panel__about-key">{t("settings.version")}</span>
+            <span className="settings-panel__about-value">
+              <code>v{APP_VERSION}</code>
+              {updateAvailable && latestRelease && (
+                <a
+                  className="settings-panel__update-badge"
+                  href={latestRelease.htmlUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Latest: ${latestRelease.tagName}`}
+                >
+                  {t("settings.update_available", { version: latestRelease.tagName })}
+                </a>
+              )}
+            </span>
+          </div>
+          <div className="settings-panel__about-row">
+            <span className="settings-panel__about-key">{t("settings.community")}</span>
+            <a
+              className="settings-panel__about-link"
+              href={COMMUNITY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t("settings.community_link")}
+            </a>
+          </div>
+        </div>
+
+        {onLogout && (
+          // Sign out lives here (not in the AccountPanel chip) so the
+          // chip stays narrow enough for the email + status row to
+          // render without ellipsizing on default sidebar widths.
+          <div className="settings-panel__section settings-panel__section--logout">
+            <button
+              type="button"
+              className="settings-panel__logout-btn"
+              onClick={onLogout}
+              disabled={logoutPending}
+            >
+              {logoutPending ? t("settings.signing_out") : t("settings.sign_out")}
+            </button>
+            <div className="settings-panel__hint">
+              Clears the cached identity and tells the extension to drop
+              its in-memory token. The WebSocket stays open so signing
+              back in doesn't require a Chrome restart.
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
