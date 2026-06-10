@@ -5,7 +5,7 @@ import { useBoardStore } from "../store/board";
 import { useSettingsStore } from "../store/settings";
 import { useReferencesStore } from "../store/references";
 import { getMediaStatus, mediaUrl, type MediaStatus } from "../api/client";
-import { countryLabel, vibeLabel } from "../constants/character";
+import { localizedCountryLabel, localizedVibeLabel } from "../constants/character";
 
 const ICON: Record<string, string> = {
   character: "◎",
@@ -645,19 +645,19 @@ export function ResultViewer() {
                 metadataModel.label
               )}
             </dd>
-            {data?.type === "character" && countryLabel(data.charCountry) && (
+            {data?.type === "character" && localizedCountryLabel(data.charCountry) && (
               <>
                 <dt>country</dt>
                 <dd>
-                  <span className="model-badge">{countryLabel(data.charCountry)}</span>
+                  <span className="model-badge">{localizedCountryLabel(data.charCountry)}</span>
                 </dd>
               </>
             )}
-            {data?.type === "character" && vibeLabel(data.charVibe) && (
+            {data?.type === "character" && localizedVibeLabel(data.charVibe) && (
               <>
                 <dt>vibe</dt>
                 <dd>
-                  <span className="model-badge">{vibeLabel(data.charVibe)}</span>
+                  <span className="model-badge">{localizedVibeLabel(data.charVibe)}</span>
                 </dd>
               </>
             )}

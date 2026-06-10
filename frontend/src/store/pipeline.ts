@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import i18n from "../i18n/i18n";
 import { runPlan as apiRunPlan, getPipelineRun, type PipelineRunDTO } from "../api/client";
 import { useBoardStore } from "./board";
 
@@ -29,7 +30,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       await useBoardStore.getState().refreshBoardState();
       schedulePoll(get, set, run.id);
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : "failed to start plan" });
+      set({ error: err instanceof Error ? err.message : i18n.t("pipeline.failed_to_start") });
     }
   },
 
@@ -59,7 +60,7 @@ function schedulePoll(
       if (run.status === "done" || run.status === "failed") {
         set({
           activeRun: null,
-          error: run.status === "failed" ? run.error ?? "pipeline failed" : null,
+          error: run.status === "failed" ? run.error ?? i18n.t("pipeline.failed") : null,
         });
         return;
       }

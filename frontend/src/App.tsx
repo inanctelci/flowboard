@@ -27,7 +27,7 @@ export function App() {
   // DOM mutation is correct here. i18n.resolvedLanguage is set synchronously
   // before first render (module-scope init in i18n.ts), so the initial
   // render already has the right value; the effect handles subsequent changes.
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   useEffect(() => {
     document.documentElement.lang = i18n.resolvedLanguage ?? "en";
   }, [i18n.resolvedLanguage]);
@@ -48,7 +48,7 @@ export function App() {
         <div className="canvas-wrap">
           <Toolbar />
           {loading && boardId === null ? (
-            <div className="canvas-loading">Loading board…</div>
+            <div className="canvas-loading">{t("app.loading_board")}</div>
           ) : (
             <>
               <Board />
