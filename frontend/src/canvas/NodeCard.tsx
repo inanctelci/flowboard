@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { useBoardStore, type FlowboardNodeData, type FlowNode } from "../store/board";
 import { useGenerationStore } from "../store/generation";
@@ -9,6 +10,7 @@ import {
   normaliseStoryboardGrid,
   resolveStoryboardLayout,
 } from "../lib/storyboardPrompt";
+import i18n from "../i18n/i18n";
 
 const ICON: Record<string, string> = {
   character: "◎",
@@ -41,11 +43,12 @@ function StatusStrip({ status }: { status?: string }) {
 const ACCEPT_MIME = "image/png,image/jpeg,image/webp,image/gif";
 
 function BriefHint({ data }: { data: FlowboardNodeData }) {
+  const { t } = useTranslation();
   if (data.autoPromptStatus === "pending") {
-    return <p className="brief-hint brief-hint--pending">✨ Composing prompt…</p>;
+    return <p className="brief-hint brief-hint--pending">{t("node.composing_prompt")}</p>;
   }
   if (data.aiBriefStatus === "pending") {
-    return <p className="brief-hint brief-hint--pending">✨ Analyzing…</p>;
+    return <p className="brief-hint brief-hint--pending">{t("node.analyzing")}</p>;
   }
   if (data.aiBrief) {
     return <p className="brief-hint" title={data.aiBrief}>✨ {data.aiBrief}</p>;
@@ -66,6 +69,7 @@ function isLLMBusy(data: FlowboardNodeData): boolean {
 }
 
 function CharacterBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }) {
+  const { t } = useTranslation();
   const mediaId = data.mediaId;
   const isProcessing = data.status === "queued" || data.status === "running";
   const [uploading, setUploading] = useState(false);
@@ -114,7 +118,8 @@ function CharacterBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }
       const resp = await uploadImage(file, projectId, isNaN(dbId) ? undefined : dbId);
       persistMedia(resp.media_id, resp.aspect_ratio);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "upload failed");
+      // i18n: do-not-translate (USER DATA — raw error message from backend)
+      setError(err instanceof Error ? err.message : t("node.upload_failed"));
     } finally {
       setUploading(false);
     }
@@ -167,12 +172,13 @@ function CharacterBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }
           className={`character-avatar${dragOver ? " character-avatar--over" : ""}${uploading ? " character-avatar--uploading" : ""}`}
           onClick={onPick}
           role="button"
-          aria-label="Replace character image"
+          aria-label={t("node.replace_char_image")}
           tabIndex={0}
         >
           <img
             className="character-avatar__img"
             src={mediaUrl(mediaId)}
+            // i18n: do-not-translate (USER DATA — img alt; node title typed by user; never wrap in t())
             alt={data.title}
           />
           {uploading && <span className="character-drop__overlay">…</span>}
@@ -189,10 +195,10 @@ function CharacterBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }
               data,
             });
           }}
-          title="Save this character to the library"
-          aria-label="Save to library"
+          title={t("node.save_char_to_library_title")}
+          aria-label={t("node.save_to_library")}
         >
-          ★ Save
+          {t("node.save_star")}
         </button>
         <input
           ref={fileInputRef}
@@ -219,9 +225,9 @@ function CharacterBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }
         className={`character-empty${dragOver ? " character-empty--over" : ""}${isProcessing ? " character-empty--processing" : ""}`}
       >
         {isProcessing ? (
-          <span className="visual-asset__hint">Generating…</span>
+          <span className="visual-asset__hint">{t("node.generating")}</span>
         ) : dragOver ? (
-          <span className="visual-asset__hint">Drop image</span>
+          <span className="visual-asset__hint">{t("node.drop_image")}</span>
         ) : (
           <>
             <button
@@ -230,7 +236,7 @@ function CharacterBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }
               onClick={onPick}
               disabled={uploading}
             >
-              {uploading ? "Uploading…" : "Upload"}
+              {uploading ? t("node.uploading") : t("node.upload")}
             </button>
             <button
               type="button"
@@ -238,7 +244,7 @@ function CharacterBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }
               onClick={openGenerate}
               disabled={uploading}
             >
-              Generate
+              {t("node.generate")}
             </button>
           </>
         )}
@@ -331,6 +337,7 @@ function ImageTile({
    * the tile has a real mediaId — saving a placeholder makes no sense. */
   onSaveToLibrary?: () => void;
 }) {
+  const { t } = useTranslation();
   const [attempt, setAttempt] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -368,7 +375,7 @@ function ImageTile({
       className={cls}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
-      aria-label={onClick ? `Open variant ${alt}` : undefined}
+      aria-label={onClick ? t("node.open_variant", { title: alt }) : undefined}
       onClick={onClick}
       onKeyDown={(e) => {
         if (!onClick) return;
@@ -407,10 +414,10 @@ function ImageTile({
             e.stopPropagation();
             onUseAsRef();
           }}
-          title="Use this variant as the reference for a downstream node"
-          aria-label="Use this variant as reference"
+          title={t("node.use_variant_ref_title")}
+          aria-label={t("node.use_variant_ref")}
         >
-          Use →
+          {t("node.use_arrow")}
         </button>
       )}
       {onSaveToLibrary && (
@@ -425,8 +432,8 @@ function ImageTile({
             e.stopPropagation();
             onSaveToLibrary();
           }}
-          title="Save this variant to the library"
-          aria-label="Save to library"
+          title={t("node.save_variant_to_library_title")}
+          aria-label={t("node.save_to_library")}
         >
           ★
         </button>
@@ -491,8 +498,12 @@ async function applyVariantToTarget(variantIdx: number, target: VariantTarget) {
         sourceVariantIdx: updated.source_variant_idx,
       });
     } catch (err) {
+      // headless i18n.t used here because applyVariantToTarget is a module-scope
+      // async function (not inside a React component — cannot use useTranslation hook)
+      const errMsg = err instanceof Error ? err.message : String(err);
       useGenerationStore.setState({
-        error: `Couldn't pin variant: ${err instanceof Error ? err.message : String(err)}`,
+        // i18n: do-not-translate (USER DATA — raw backend error token in {{error}})
+        error: i18n.t("node.pin_variant_error", { error: errMsg }),
       });
       return;
     }
@@ -527,23 +538,24 @@ function VariantPicker({
   onPick(target: VariantTarget): void;
   onCancel(): void;
 }) {
+  const { t } = useTranslation();
   return (
-    <div className="variant-picker" role="dialog" aria-label="Pick downstream target">
+    <div className="variant-picker" role="dialog" aria-label={t("node.pick_downstream_title")}>
       <div className="variant-picker__heading">
-        Use variant v{state.variantIdx + 1} for:
+        {t("node.use_variant_for", { variantIdx: state.variantIdx + 1 })}
       </div>
       <ul className="variant-picker__list">
-        {state.targets.map((t) => (
-          <li key={t.edgeId}>
+        {state.targets.map((tgt) => (
+          <li key={tgt.edgeId}>
             <button
               type="button"
               className="variant-picker__btn"
-              onClick={() => onPick(t)}
+              onClick={() => onPick(tgt)}
             >
-              {t.title}
+              {tgt.title}
               <span className="variant-picker__kind">
-                {t.kind === "video" ? "video" : "image"}
-                {!t.hasPrompt ? " · empty" : ""}
+                {tgt.kind === "video" ? t("node.kind_video") : t("node.kind_image")}
+                {!tgt.hasPrompt ? t("node.kind_empty") : ""}
               </span>
             </button>
           </li>
@@ -554,13 +566,14 @@ function VariantPicker({
         className="variant-picker__cancel"
         onClick={onCancel}
       >
-        Cancel
+        {t("node.cancel")}
       </button>
     </div>
   );
 }
 
 function ImageBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }) {
+  const { t } = useTranslation();
   const tileCount = tileCountFor(data);
   const ids = data.mediaIds ?? (data.mediaId ? [data.mediaId] : []);
   const hasMedia = ids.length > 0;
@@ -611,14 +624,16 @@ function ImageBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }) {
     try {
       const projectId = await useGenerationStore.getState().ensureProjectId();
       if (!projectId) {
-        setError("no project");
+        // i18n: do-not-translate (USER DATA — store-error: no project context)
+        setError(t("node.no_project"));
         return;
       }
       const dbId = parseInt(rfId, 10);
       const resp = await uploadImage(file, projectId, isNaN(dbId) ? undefined : dbId);
       persistMedia(resp.media_id, resp.aspect_ratio);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "upload failed");
+      // i18n: do-not-translate (USER DATA — raw error message from backend)
+      setError(err instanceof Error ? err.message : t("node.upload_failed"));
     } finally {
       setUploading(false);
     }
@@ -681,7 +696,7 @@ function ImageBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }) {
       >
         <div className={`character-empty${dragOver ? " character-empty--over" : ""}`}>
           {dragOver ? (
-            <span className="visual-asset__hint">Drop image</span>
+            <span className="visual-asset__hint">{t("node.drop_image")}</span>
           ) : (
             <>
               <button
@@ -690,7 +705,7 @@ function ImageBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }) {
                 onClick={onPick}
                 disabled={uploading}
               >
-                {uploading ? "Uploading…" : "Upload"}
+                {uploading ? t("node.uploading") : t("node.upload")}
               </button>
               <button
                 type="button"
@@ -698,7 +713,7 @@ function ImageBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }) {
                 onClick={openGenerate}
                 disabled={uploading}
               >
-                Generate
+                {t("node.generate")}
               </button>
             </>
           )}
@@ -720,7 +735,7 @@ function ImageBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }) {
     const targets = collectGenTargets(rfId);
     if (targets.length === 0) {
       useGenerationStore.setState({
-        error: "Connect this image to a downstream image/video target first.",
+        error: t("node.connect_downstream_first"),
       });
       return;
     }
@@ -746,6 +761,7 @@ function ImageBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }) {
         rfId={rfId}
         mediaId={mid}
         isProcessing={isProcessing && !mid}
+        // i18n: do-not-translate (USER DATA — tile alt text; node title typed by user)
         alt={data.title}
         onClick={onClick}
         onUseAsRef={
@@ -822,6 +838,7 @@ function VideoTile({
   alt: string;
   onClick?: () => void;
 }) {
+  const { t } = useTranslation();
   const [attempt, setAttempt] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -837,8 +854,9 @@ function VideoTile({
     };
   }, [mediaId]);
 
+  // i18n: do-not-translate (USER DATA — slotError is a raw backend error token, e.g. PUBLIC_ERROR_UNSAFE_GENERATION)
   const blockedTitle = slotError
-    ? `Variant blocked: ${slotError} — click for details`
+    ? t("node.variant_blocked_title", { error: slotError })
     : undefined;
 
   const placeholder = (
@@ -850,7 +868,7 @@ function VideoTile({
       {slotError ? (
         <>
           <span className="video-blocked-icon">⚠</span>
-          <span className="video-blocked-label">Blocked</span>
+          <span className="video-blocked-label">{t("node.blocked")}</span>
         </>
       ) : (
         <>
@@ -872,7 +890,7 @@ function VideoTile({
         className={cls}
         role={onClick ? "button" : undefined}
         tabIndex={onClick ? 0 : undefined}
-        aria-label={blockedTitle ?? (onClick ? `Open variant ${alt}` : undefined)}
+        aria-label={blockedTitle ?? (onClick ? t("node.open_variant", { title: alt }) : undefined)}
         title={blockedTitle}
         onClick={onClick}
         onKeyDown={(e) => {
@@ -899,7 +917,7 @@ function VideoTile({
       className={cls}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
-      aria-label={onClick ? `Open variant ${alt}` : undefined}
+      aria-label={onClick ? t("node.open_variant", { title: alt }) : undefined}
       onClick={onClick}
       onKeyDown={(e) => {
         if (!onClick) return;
@@ -941,6 +959,7 @@ function VideoTile({
           src={src}
           preload="none"
           muted
+          // i18n: do-not-translate (USER DATA — video tile alt text; node title typed by user)
           aria-label={alt}
           style={loaded ? undefined : { display: "none" }}
           onLoadedData={() => setLoaded(true)}
@@ -1011,6 +1030,7 @@ function VideoBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }) {
         isProcessing={isProcessing && !mid}
         isError={(isError && !mid) || slotBlocked}
         slotError={slotError}
+        // i18n: do-not-translate (USER DATA — video tile alt; node title typed by user)
         alt={data.title}
         onClick={onClick}
       />,
@@ -1035,6 +1055,7 @@ function VideoBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }) {
 }
 
 function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }) {
+  const { t } = useTranslation();
   const mediaId = data.mediaId;
   const isProcessing = data.status === "queued" || data.status === "running";
   const [uploading, setUploading] = useState(false);
@@ -1083,14 +1104,15 @@ function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData
     try {
       const projectId = await useGenerationStore.getState().ensureProjectId();
       if (!projectId) {
-        setError("no project");
+        setError(t("node.no_project"));
         return;
       }
       const dbId = parseInt(rfId, 10);
       const resp = await uploadImage(file, projectId, isNaN(dbId) ? undefined : dbId);
       persistMedia(resp.media_id, resp.aspect_ratio);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "upload failed");
+      // i18n: do-not-translate (USER DATA — raw error message from backend)
+      setError(err instanceof Error ? err.message : t("node.upload_failed"));
     } finally {
       setUploading(false);
     }
@@ -1104,7 +1126,7 @@ function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData
     try {
       const projectId = await useGenerationStore.getState().ensureProjectId();
       if (!projectId) {
-        setError("no project");
+        setError(t("node.no_project"));
         return;
       }
       const dbId = parseInt(rfId, 10);
@@ -1117,7 +1139,8 @@ function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData
       setLinkMode(false);
       setLinkValue("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "link upload failed");
+      // i18n: do-not-translate (USER DATA — raw error message from backend)
+      setError(err instanceof Error ? err.message : t("node.link_upload_failed"));
     } finally {
       setUploading(false);
     }
@@ -1128,14 +1151,15 @@ function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData
     try {
       const projectId = await useGenerationStore.getState().ensureProjectId();
       if (!projectId) {
-        setError("no project");
+        setError(t("node.no_project"));
         return;
       }
       const resp = await uploadImage(file, projectId);
       setRefMediaId(resp.media_id);
       setRefRefreshKey((k) => k + 1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ref upload failed");
+      // i18n: do-not-translate (USER DATA — raw error message from backend)
+      setError(err instanceof Error ? err.message : t("node.ref_upload_failed"));
     }
   }
 
@@ -1162,13 +1186,13 @@ function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData
           className={`visual-asset__empty${isProcessing ? " visual-asset__empty--processing" : ""}`}
         >
           {isProcessing ? (
-            <span className="visual-asset__hint">Generating…</span>
+            <span className="visual-asset__hint">{t("node.generating")}</span>
           ) : linkMode ? (
             <div className="visual-asset__link-row">
               <input
                 type="url"
                 className="visual-asset__link-input"
-                placeholder="https://… (png/jpg/webp)"
+                placeholder={t("node.link_placeholder")}
                 value={linkValue}
                 onChange={(e) => setLinkValue(e.target.value)}
                 onKeyDown={(e) => {
@@ -1188,7 +1212,7 @@ function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData
                 onClick={() => uploadFromLink(linkValue)}
                 disabled={uploading || !linkValue.trim()}
               >
-                {uploading ? "Fetching…" : "Save"}
+                {uploading ? t("node.fetching") : t("node.save")}
               </button>
               <button
                 type="button"
@@ -1211,7 +1235,7 @@ function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
               >
-                {uploading ? "Uploading…" : "Upload"}
+                {uploading ? t("node.uploading") : t("node.upload")}
               </button>
               <button
                 type="button"
@@ -1222,7 +1246,7 @@ function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData
                 }}
                 disabled={uploading}
               >
-                Add link
+                {t("node.add_link")}
               </button>
               <button
                 type="button"
@@ -1230,7 +1254,7 @@ function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData
                 onClick={openGenerate}
                 disabled={uploading}
               >
-                Generate
+                {t("node.generate")}
               </button>
             </>
           )}
@@ -1257,6 +1281,7 @@ function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData
         <img
           className="visual-asset__image"
           src={mediaUrl(mediaId)}
+          // i18n: do-not-translate (USER DATA — visual asset img alt; node title typed by user)
           alt={data.title}
         />
         {!isProcessing && (
@@ -1264,9 +1289,9 @@ function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData
             type="button"
             className="visual-asset__refine-btn"
             onClick={() => setRefineOpen((o) => !o)}
-            aria-label="Refine image"
+            aria-label={t("node.refine_image")}
           >
-            Refine
+            {t("node.refine")}
           </button>
         )}
       </div>
@@ -1283,17 +1308,17 @@ function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData
               data,
             });
           }}
-          title="Save this asset to the library"
-          aria-label="Save to library"
+          title={t("node.save_asset_to_library_title")}
+          aria-label={t("node.save_to_library")}
         >
-          ★ Save
+          {t("node.save_star")}
         </button>
       )}
       {refineOpen && (
-        <div className="visual-asset__refine-panel" role="region" aria-label="Refine">
+        <div className="visual-asset__refine-panel" role="region" aria-label={t("node.refine_region")}>
           <textarea
             className="visual-asset__refine-textarea"
-            placeholder="Describe the change…"
+            placeholder={t("node.refine_placeholder")}
             rows={2}
             value={refinePrompt}
             onChange={(e) => setRefinePrompt(e.target.value)}
@@ -1304,7 +1329,7 @@ function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData
               className="visual-asset__refine-ref"
               onClick={() => refInputRef.current?.click()}
             >
-              {refMediaId ? `Ref ✓ (${refRefreshKey})` : "Add ref"}
+              {refMediaId ? t("node.ref_confirmed", { key: refRefreshKey }) : t("node.add_ref")}
             </button>
             <button
               type="button"
@@ -1312,7 +1337,7 @@ function VisualAssetBody({ rfId, data }: { rfId: string; data: FlowboardNodeData
               disabled={!refinePrompt.trim()}
               onClick={submitRefine}
             >
-              Refine →
+              {t("node.refine_arrow")}
             </button>
           </div>
           <input
@@ -1345,6 +1370,7 @@ function EditableTextBody({
   data: FlowboardNodeData;
   variant: "prompt" | "note";
 }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(data.prompt ?? "");
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -1395,8 +1421,8 @@ function EditableTextBody({
           }}
           placeholder={
             variant === "prompt"
-              ? "Style direction (e.g. cinematic warm tone, magazine editorial mood). Connect into image/video to feed downstream auto-prompt."
-              : "Note, TODO, label…"
+              ? t("node.prompt_placeholder")
+              : t("node.note_placeholder")
           }
         />
       </div>
@@ -1406,14 +1432,14 @@ function EditableTextBody({
   const text = data.prompt ?? "";
   const placeholder =
     variant === "prompt"
-      ? "Double-click to add direction…"
-      : "Double-click to add note…";
+      ? t("node.prompt_display_placeholder")
+      : t("node.note_display_placeholder");
 
   return (
     <div
       className={`node-body node-body--${variant}`}
       onDoubleClick={() => setEditing(true)}
-      title="Double-click to edit"
+      title={t("node.double_click_edit")}
     >
       {variant === "prompt" ? (
         <pre className="prompt-text">{text || placeholder}</pre>
@@ -1434,6 +1460,7 @@ function EditableTextBody({
 // the active layout.
 
 function StoryboardBody({ rfId, data }: { rfId: string; data: FlowboardNodeData }) {
+  const { t } = useTranslation();
   // Show the concrete rows × cols (post-orientation flip), not the
   // user-picker key. So a node with grid="2x3" on a portrait composite
   // shows "3×2" — matches what Flow actually rendered.
@@ -1444,7 +1471,7 @@ function StoryboardBody({ rfId, data }: { rfId: string; data: FlowboardNodeData 
     <div className="storyboard-wrap">
       <span
         className="storyboard-grid-badge"
-        title={`Composite layout: ${label} (${rows * cols} panels)`}
+        title={t("node.storyboard_layout_title", { label, total: rows * cols })}
       >
         {label}
       </span>
@@ -1478,6 +1505,7 @@ function downloadExt(type: string): string {
 }
 
 export function NodeCard(props: NodeProps<FlowNode>) {
+  const { t } = useTranslation();
   const data = props.data;
   const isNote = data.type === "note";
   const isGenerable = ["image", "prompt", "video", "visual_asset", "character", "Storyboard"].includes(data.type);
@@ -1532,13 +1560,14 @@ export function NodeCard(props: NodeProps<FlowNode>) {
 
       <div className="node-header">
         <span className="node-icon" aria-hidden="true">{ICON[data.type] ?? "□"}</span>
+        {/* i18n: do-not-translate (USER DATA — node title typed by user) */}
         <span className="node-title">{data.title}</span>
         {llmBusy && (
           // Compact pill so the busy state reads at a glance even if the
           // body is collapsed. Title is contextual: composing vs. analysing.
           <span className="node-header__llm-pill" aria-live="polite">
             <span className="node-header__llm-spinner" aria-hidden="true" />
-            {data.autoPromptStatus === "pending" ? "Composing…" : "Analyzing…"}
+            {data.autoPromptStatus === "pending" ? t("node.composing") : t("node.analyzing")}
           </span>
         )}
         <div className="node-header__actions">
@@ -1546,8 +1575,8 @@ export function NodeCard(props: NodeProps<FlowNode>) {
             <button
               className="node-header__btn"
               onClick={handleDownload}
-              aria-label="Download media"
-              title="Download"
+              aria-label={t("node.download_media")}
+              title={t("node.download")}
               tabIndex={0}
             >
               ⬇
@@ -1557,8 +1586,8 @@ export function NodeCard(props: NodeProps<FlowNode>) {
             <button
               className={`node-header__btn${isRunning ? " node-header__btn--running" : ""}`}
               onClick={handleGenerate}
-              aria-label="Generate from this node"
-              title={llmBusy ? "Backend is still composing — try again in a moment" : "Generate"}
+              aria-label={t("node.generate_from_node")}
+              title={llmBusy ? t("node.composing_hint") : t("node.generate")}
               tabIndex={0}
               disabled={llmBusy}
             >
