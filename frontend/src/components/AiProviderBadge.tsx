@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getLlmConfig,
   getLlmProviders,
@@ -23,6 +24,7 @@ import { AiProviderDialog } from "./AiProviderDialog";
  */
 
 const PROVIDER_LABEL: Record<LLMProviderName, string> = {
+  // i18n: do-not-translate — Claude, Gemini, OpenAI are brand names
   claude: "Claude",
   gemini: "Gemini",
   openai: "OpenAI",
@@ -31,6 +33,7 @@ const PROVIDER_LABEL: Record<LLMProviderName, string> = {
 const POLL_INTERVAL_MS = 30_000;
 
 export function AiProviderBadge() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [config, setConfig] = useState<LLMConfig | null>(null);
   const [providers, setProviders] = useState<LLMProviderInfo[] | null>(null);
@@ -77,7 +80,7 @@ export function AiProviderBadge() {
         type="button"
         className="ai-provider-badge ai-provider-badge--loading"
         disabled
-        aria-label="AI Providers"
+        aria-label={t("provider.badge_label")}
       >
         <span className="ai-provider-badge__icon" aria-hidden="true">🤖</span>
         <span className="ai-provider-badge__label">AI</span>
@@ -96,7 +99,7 @@ export function AiProviderBadge() {
           className="ai-provider-badge ai-provider-badge--setup"
           onClick={() => setOpen(true)}
           title="Pick an AI provider to power Auto-Prompt, Vision, and Planner."
-          aria-label="Set up AI provider"
+          aria-label={t("provider.configure_title")}
         >
           <span className="ai-provider-badge__icon" aria-hidden="true">🤖</span>
           <span className="ai-provider-badge__label">Setup AI</span>
@@ -136,7 +139,7 @@ export function AiProviderBadge() {
         className={`ai-provider-badge${unhealthy ? " ai-provider-badge--warn" : ""}`}
         onClick={() => setOpen(true)}
         title={tooltip}
-        aria-label="AI Providers"
+        aria-label={t("provider.badge_label")}
       >
         <span className="ai-provider-badge__icon" aria-hidden="true">🤖</span>
         <span className="ai-provider-badge__label">{PROVIDER_LABEL[primary]}</span>
