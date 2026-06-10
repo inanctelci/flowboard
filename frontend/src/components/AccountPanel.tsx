@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getAuthMe,
   logoutExtension,
@@ -27,6 +28,7 @@ const APP_VERSION: string = packageJson.version;
  * cog stacked vertically so the chip still fits.
  */
 export function AccountPanel({ collapsed = false }: { collapsed?: boolean }) {
+  const { t } = useTranslation();
   const setStorePaygateTier = useGenerationStore.setState;
   const [open, setOpen] = useState(false);
   const [profile, setProfile] = useState<AuthMe | null>(null);
@@ -274,7 +276,7 @@ export function AccountPanel({ collapsed = false }: { collapsed?: boolean }) {
                 disabled={scanState === "scanning"}
                 title="Scan for an extension connection and re-fetch user info"
               >
-                {scanState === "scanning" ? "Scanning…" : "🔍 Scan extension"}
+                {scanState === "scanning" ? t("account.scanning") : "🔍 Scan extension"}
               </button>
             )}
           </div>
@@ -294,6 +296,7 @@ export function AccountPanel({ collapsed = false }: { collapsed?: boolean }) {
       {!collapsed && (
         <div className="account-panel__version-row">
           <span className="account-panel__version-label">
+            {/* i18n: do-not-translate — "Flowboard" is the product brand name */}
             Flowboard <code>v{APP_VERSION}</code>
           </span>
           {updateAvailable && latestRelease && (
@@ -332,7 +335,8 @@ export function AccountPanel({ collapsed = false }: { collapsed?: boolean }) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Open Flow ↗
+            {/* i18n: do-not-translate — "Flow" is a product name */}
+            {t("account.open_flow")} ↗
           </a>
         </div>
       )}
