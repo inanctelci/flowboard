@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { AiProvidersSection } from "./settings/AiProvidersSection";
 
 /**
@@ -25,6 +26,7 @@ interface AiProviderDialogProps {
 }
 
 export function AiProviderDialog({ open, onClose, force = false }: AiProviderDialogProps) {
+  const { t } = useTranslation();
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,18 +54,18 @@ export function AiProviderDialog({ open, onClose, force = false }: AiProviderDia
         className="ai-provider-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label="AI Providers"
+        aria-label={t("provider.dialog_aria")}
       >
         <div className="ai-provider-dialog__header">
           <span className="ai-provider-dialog__title">
-            {force ? "Set up your AI provider" : "AI Providers"}
+            {force ? t("provider.setup_title") : t("provider.dialog_title")}
           </span>
           {!force && (
             <button
               type="button"
               className="ai-provider-dialog__close"
               onClick={onClose}
-              aria-label="Close AI Providers"
+              aria-label={t("provider.close")}
             >
               ×
             </button>
@@ -71,9 +73,7 @@ export function AiProviderDialog({ open, onClose, force = false }: AiProviderDia
         </div>
         {force && (
           <div className="ai-provider-dialog__force-banner" role="alert">
-            Flowboard needs an AI provider before it can run Auto-Prompt,
-            Vision, or Planner. Pick one card, run all 3 tests green, then
-            Apply to continue.
+            {t("provider.force_banner")}
           </div>
         )}
         <AiProvidersSection />
