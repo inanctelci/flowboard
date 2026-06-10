@@ -6,6 +6,7 @@ import {
   type ImageModelKey,
   type VideoQuality,
 } from "../store/settings";
+import type { Locale } from "../i18n/i18n";
 import { getLatestRelease, isNewerVersion, type LatestRelease } from "../api/github";
 import packageJson from "../../package.json";
 
@@ -95,6 +96,12 @@ interface SettingsPanelProps {
   logoutPending?: boolean;
 }
 
+// i18n: locale names — intentionally not translated (native names by convention)
+const LOCALES: { code: string; label: string }[] = [
+  { code: "en", label: "English" },
+  { code: "tr", label: "Türkçe" },
+];
+
 export function SettingsPanel({ open, onClose, onLogout, logoutPending }: SettingsPanelProps) {
   const { t } = useTranslation();
   const tier = useGenerationStore((s) => s.paygateTier);
@@ -104,6 +111,8 @@ export function SettingsPanel({ open, onClose, onLogout, logoutPending }: Settin
   const setVideoQuality = useSettingsStore((s) => s.setVideoQuality);
   const videoModel = useSettingsStore((s) => s.videoModel);
   const setVideoModel = useSettingsStore((s) => s.setVideoModel);
+  const locale = useSettingsStore((s) => s.locale);
+  const setLocale = useSettingsStore((s) => s.setLocale);
 
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -167,6 +176,23 @@ export function SettingsPanel({ open, onClose, onLogout, logoutPending }: Settin
           >
             ×
           </button>
+        </div>
+
+        <div className="settings-panel__section">
+          <div className="settings-panel__label">{t("settings.language_section_label")}</div>
+          <div className="settings-panel__hint">
+            {t("settings.language_picker_desc")}
+          </div>
+          <select
+            className="settings-panel__select"
+            aria-label={t("settings.language_picker_aria")}
+            value={locale}
+            onChange={(e) => setLocale(e.target.value as Locale)}
+          >
+            {LOCALES.map((l) => (
+              <option key={l.code} value={l.code}>{l.label}</option>
+            ))}
+          </select>
         </div>
 
         <div className="settings-panel__section">
