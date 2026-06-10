@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import i18n, { type Locale } from "../i18n/i18n";
 
 /**
  * Per-user model preferences. Survives page reload via localStorage —
@@ -54,13 +55,34 @@ interface SettingsState {
   videoQuality: VideoQuality;
   videoModel: VideoModelFamily;
   omniFlashDuration: OmniFlashDuration;
+  locale: Locale;
   setImageModel(model: ImageModelKey): void;
   setVideoQuality(q: VideoQuality): void;
   setVideoModel(m: VideoModelFamily): void;
   setOmniFlashDuration(d: OmniFlashDuration): void;
+  setLocale(l: Locale): void;
 }
 
 const STORAGE_KEY = "flowboard.settings.v1";
+const LOCALE_KEY = "flowboard.i18n.locale";
+
+function loadPersistedLocale(): Locale {
+  try {
+    const stored = localStorage.getItem(LOCALE_KEY);
+    if (stored === "en" || stored === "tr") return stored;
+  } catch { /* ignore */ }
+  // Mirror whatever i18next already resolved at module load time.
+  // i18n.ts runs before this store module, so resolvedLanguage is populated.
+  const resolved = i18n.resolvedLanguage;
+  if (resolved === "en" || resolved === "tr") return resolved;
+  return "en";
+}
+
+function persistLocale(locale: Locale): void {
+  try {
+    localStorage.setItem(LOCALE_KEY, locale);
+  } catch { /* ignore */ }
+}
 
 interface PersistShape {
   imageModel?: ImageModelKey;
@@ -100,6 +122,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       : "fast",
   videoModel: persisted.videoModel ?? "veo",
   omniFlashDuration: persisted.omniFlashDuration ?? 4,
+  locale: loadPersistedLocale(),
   setImageModel(model) {
     set({ imageModel: model });
     persist({
@@ -135,5 +158,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       videoModel: get().videoModel,
       omniFlashDuration: d,
     });
+  },
+  setLocale(l) {
+    set({ locale: l });
+    persistLocale(l);
+    // i18n.changeLanguage is the ONLY call site — components never call
+    // changeLanguage directly; they call setLocale() on this store.
+    void i18n.changeLanguage(l);
+    // NOTE: do NOT call persist() here — locale lives in its own key
+    // (flowboard.i18n.locale), not in the settings blob.
   },
 }));

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { ReactFlowProvider } from "@xyflow/react";
 import { Board } from "./canvas/Board";
 import { AddNodePalette } from "./canvas/AddNodePalette";
@@ -20,6 +21,16 @@ export function App() {
   const loading = useBoardStore((s) => s.loading);
   const boardId = useBoardStore((s) => s.boardId);
   const ran = useRef(false);
+
+  // BUGS-03: Keep <html lang> in sync with the active locale.
+  // document.documentElement is outside the React tree (#root) — direct
+  // DOM mutation is correct here. i18n.resolvedLanguage is set synchronously
+  // before first render (module-scope init in i18n.ts), so the initial
+  // render already has the right value; the effect handles subsequent changes.
+  const { i18n } = useTranslation();
+  useEffect(() => {
+    document.documentElement.lang = i18n.resolvedLanguage ?? "en";
+  }, [i18n.resolvedLanguage]);
 
   useEffect(() => {
     if (ran.current) return;
