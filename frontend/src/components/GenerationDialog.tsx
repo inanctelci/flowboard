@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
+import i18n from "../i18n/i18n";
 import { useGenerationStore } from "../store/generation";
 import { useBoardStore, type StoryboardGrid } from "../store/board";
 import {
@@ -208,6 +210,7 @@ function InfoTip({ tip }: { tip: string }) {
 }
 
 export function GenerationDialog() {
+  const { t } = useTranslation();
   const openDialog = useGenerationStore((s) => s.openDialog);
   const closeGenerationDialog = useGenerationStore((s) => s.closeGenerationDialog);
   const dispatchGeneration = useGenerationStore((s) => s.dispatchGeneration);
@@ -559,7 +562,9 @@ export function GenerationDialog() {
       });
     } catch (err) {
       useGenerationStore.setState({
-        error: `Couldn't pin variant: ${err instanceof Error ? err.message : String(err)}`,
+        error: i18n.t("dialog.pin_variant_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        }),
       });
     }
   }
@@ -696,8 +701,8 @@ export function GenerationDialog() {
         useBoardStore.getState().updateNodeData(rfId, { autoPromptStatus: "failed" });
         useGenerationStore.setState({
           error: err instanceof Error
-            ? `Auto-prompt failed: ${err.message}`
-            : "Auto-prompt failed",
+            ? i18n.t("dialog.auto_prompt_failed", { error: err.message })
+            : i18n.t("dialog.auto_prompt_failed_simple"),
         });
         return;
       }
@@ -780,14 +785,14 @@ export function GenerationDialog() {
           <div>
             <h2 id="gen-dialog-title" className="gen-dialog__title">
               {isVideo
-                ? "Generate video"
+                ? t("dialog.title_video")
                 : isCharacter
-                ? "Generate character"
+                ? t("dialog.title_character")
                 : isStoryboard
-                ? "Generate storyboard"
+                ? t("dialog.title_storyboard")
                 : isPrompt
-                ? "Edit prompt"
-                : "Generate image"}
+                ? t("dialog.title_prompt")
+                : t("dialog.title_image")}
             </h2>
             <span className="gen-dialog__subtitle">
               Node #{node?.data.shortId ?? rfId}
@@ -796,7 +801,7 @@ export function GenerationDialog() {
           <button
             className="gen-dialog__close"
             onClick={closeGenerationDialog}
-            aria-label="Close dialog (Escape)"
+            aria-label={t("dialog.close")}
           >
             esc
           </button>
@@ -807,13 +812,14 @@ export function GenerationDialog() {
           <div className="gen-dialog__field">
             <div className="gen-dialog__label-row">
               <label className="gen-dialog__label" htmlFor="gen-prompt">
-                {isVideo ? "Motion prompt" : "Prompt"}
+                {isVideo ? t("dialog.motion_prompt_label") : t("dialog.prompt_label")}
                 {autoPromptUsed && (
-                  <span className="gen-dialog__auto-badge" title="Auto-generated from upstream nodes">
-                    ✨ auto
+                  <span className="gen-dialog__auto-badge" title={t("dialog.auto_badge_title")}>
+                    {t("dialog.auto_badge")}
                   </span>
                 )}
               </label>
+              {/* i18n: do-not-translate (character count format "N/500" — numeric) */}
               <span className="gen-dialog__char-count">{prompt.length}/500</span>
             </div>
             <textarea
@@ -829,33 +835,33 @@ export function GenerationDialog() {
               }}
               placeholder={
                 isVideo
-                  ? "Bỏ trống để tự sinh motion prompt từ source image ✨"
+                  ? t("dialog.video_prompt_placeholder")
                   : isPrompt
-                  ? "Nhập prompt mồi để feed cho downstream image / video…"
-                  : "Bỏ trống để tự generate prompt từ upstream nodes ✨"
+                  ? t("dialog.prompt_node_placeholder")
+                  : t("dialog.image_prompt_placeholder")
               }
               disabled={isWorking}
               readOnly={hasStoryboardUpstream}
               title={
                 hasStoryboardUpstream
-                  ? "Locked: storyboard motion template (animates panels in order)"
+                  ? t("dialog.locked_storyboard_title")
                   : undefined
               }
             />
             {hasStoryboardUpstream && (
               <p className="gen-dialog__hint gen-dialog__hint--locked">
-                🎬 <strong>Storyboard motion template</strong> — locked because an
-                upstream Storyboard node is feeding this video. Flow animates
-                the composite panels in order (frame 1 →
-                {" "}{totalPanels(storyboardUpstreamGrid)}). Other refs
-                (character / location / visual_asset) still flow through normally.
+                <Trans
+                  i18nKey="dialog.storyboard_locked_hint"
+                  values={{ panels: totalPanels(storyboardUpstreamGrid) }}
+                  components={{ b: <strong /> }}
+                />
               </p>
             )}
             {isWorking && (
               <p className="gen-dialog__hint">
                 {node?.data.aiBriefStatus === "pending"
-                  ? "✨ Đang phân tích image…"
-                  : "✨ Đang dựng prompt từ upstream context…"}
+                  ? t("dialog.analyzing_image")
+                  : t("dialog.building_prompt")}
               </p>
             )}
           </div>
@@ -865,7 +871,7 @@ export function GenerationDialog() {
         {isCharacter && (
           <>
             <div className="gen-dialog__field">
-              <span className="gen-dialog__label">Gender</span>
+              <span className="gen-dialog__label">{t("dialog.gender_label")}</span>
               <div className="aspect-chip-row">
                 {CHARACTER_GENDERS.map((g) => (
                   <button
@@ -881,7 +887,7 @@ export function GenerationDialog() {
             </div>
 
             <div className="gen-dialog__field">
-              <span className="gen-dialog__label">Quốc gia</span>
+              <span className="gen-dialog__label">{t("dialog.country_label")}</span>
               <div className="aspect-chip-row">
                 {CHARACTER_COUNTRIES.map((c) => (
                   <button
@@ -897,7 +903,7 @@ export function GenerationDialog() {
             </div>
 
             <div className="gen-dialog__field">
-              <span className="gen-dialog__label">Vibe</span>
+              <span className="gen-dialog__label">{t("dialog.vibe_label")}</span>
               <div className="aspect-chip-row">
                 {CHARACTER_VIBES.map((v) => (
                   <button
@@ -915,9 +921,10 @@ export function GenerationDialog() {
             <div className="gen-dialog__field">
               <div className="gen-dialog__label-row">
                 <label className="gen-dialog__label" htmlFor="gen-char-extras">
-                  Mô tả thêm (tuỳ chọn)
-                  <InfoTip tip="Prompt được auto-build: portrait headshot · vibe styling · photorealistic — tối ưu cho character reference." />
+                  {t("dialog.extras_label")}
+                  <InfoTip tip={t("dialog.extras_tip")} />
                 </label>
+                {/* i18n: do-not-translate (character count format "N/200" — numeric) */}
                 <span className="gen-dialog__char-count">{charExtras.length}/200</span>
               </div>
               <textarea
@@ -928,7 +935,7 @@ export function GenerationDialog() {
                 maxLength={200}
                 value={charExtras}
                 onChange={(e) => setCharExtras(e.target.value)}
-                placeholder="Tuổi, kiểu tóc, trang phục, biểu cảm…"
+                placeholder={t("dialog.extras_placeholder")}
               />
             </div>
           </>
@@ -941,7 +948,9 @@ export function GenerationDialog() {
           <div className="gen-dialog__field">
             <div className="gen-dialog__label-row">
               <span className="gen-dialog__label">
-                Source image{sourceMediaIds.length > 1 ? `s (${sourceMediaIds.length})` : ""}
+                {sourceMediaIds.length > 1
+                  ? t("dialog.source_images_label", { count: sourceMediaIds.length })
+                  : t("dialog.source_image_label")}
               </span>
               {sourceMediaIds.length > 1 && (
                 <div className="source-select-actions">
@@ -954,14 +963,14 @@ export function GenerationDialog() {
                       )
                     }
                   >
-                    All
+                    {t("dialog.select_all")}
                   </button>
                   <button
                     type="button"
                     className="source-select-mini"
                     onClick={() => setSelectedSourceIdx(new Set())}
                   >
-                    None
+                    {t("dialog.select_none")}
                   </button>
                 </div>
               )}
@@ -985,7 +994,7 @@ export function GenerationDialog() {
                           });
                         }}
                         aria-pressed={checked}
-                        aria-label={`Variant ${i + 1}${checked ? " selected" : ""}`}
+                        aria-label={t("dialog.variant_n", { n: i + 1, selected: checked ? " selected" : "" })}
                       >
                         <img
                           className="source-image-row__thumb"
@@ -1005,22 +1014,20 @@ export function GenerationDialog() {
                 <p className="gen-dialog__hint">
                   {selectedSourceIdx.size === 0 ? (
                     <span style={{ color: "#ef4444" }}>
-                      Chọn ít nhất 1 variant để gen video.
+                      {t("dialog.select_at_least_one")}
                     </span>
                   ) : (
-                    <>
-                      Sẽ gen <strong>{selectedSourceIdx.size} video</strong>
-                      {selectedSourceIdx.size === sourceMediaIds.length
-                        ? " (tất cả variants)"
-                        : ` (${selectedSourceIdx.size}/${sourceMediaIds.length} variants)`}
-                      — cùng prompt + camera setting.
-                    </>
+                    <Trans
+                      i18nKey="dialog.will_gen"
+                      values={{ count: selectedSourceIdx.size }}
+                      components={{ b: <strong /> }}
+                    />
                   )}
                 </p>
               </>
             ) : (
               <div className="source-image-row source-image-row--empty">
-                Connect an upstream image node with rendered media first
+                {t("dialog.no_source_image")}
               </div>
             )}
           </div>
@@ -1035,15 +1042,16 @@ export function GenerationDialog() {
           && (
           <div className="gen-dialog__field">
             <span className="gen-dialog__label">
-              Source references ({refSourceNodes.length + promptSourceNodes.length})
+              {t("dialog.source_refs_label", { count: refSourceNodes.length + promptSourceNodes.length })}
             </span>
             <div className="ref-source-row">
               {promptSourceNodes.map((p) => {
-                const preview = p.text.trim() || "(empty prompt)";
+                const preview = p.text.trim() || t("dialog.empty_prompt");
                 return (
                   <div
                     key={p.edgeId}
                     className="ref-source-chip ref-source-chip--prompt"
+                    // i18n: do-not-translate (p.node.data.title — USER DATA; "Prompt" fallback — node type label)
                     title={`${p.node.data.title || "Prompt"} — ${preview}`}
                   >
                     <div className="ref-source-chip__prompt-body">
@@ -1105,7 +1113,7 @@ export function GenerationDialog() {
                       <div
                         className="ref-source-chip__picker"
                         role="dialog"
-                        aria-label={`Pick variant for ${r.node.data.title}`}
+                        aria-label={t("dialog.pick_variant_for", { title: r.node.data.title })}
                       >
                         {r.allVariants.map((mid, i) => {
                           const isCurrent = i === (r.variantIdx ?? 0);
@@ -1117,13 +1125,13 @@ export function GenerationDialog() {
                                 isCurrent ? " ref-source-chip__picker-item--current" : ""
                               }`}
                               onClick={() => void pickVariantForEdge(r.edgeId, i)}
-                              title={`Variant ${i + 1}`}
+                              title={t("dialog.variant_n_title", { n: i + 1 })}
                               aria-current={isCurrent ? "true" : undefined}
                             >
                               <img
                                 className="ref-source-chip__picker-img"
                                 src={mediaUrl(mid)}
-                                alt={`Variant ${i + 1}`}
+                                alt={t("dialog.variant_n_alt", { n: i + 1 })}
                               />
                               <span className="ref-source-chip__picker-label">
                                 v{i + 1}
@@ -1143,7 +1151,7 @@ export function GenerationDialog() {
         {/* Aspect ratio — irrelevant for prompt nodes (text-only). */}
         {!isPrompt && (
           <div className="gen-dialog__field">
-            <span className="gen-dialog__label">Aspect ratio</span>
+            <span className="gen-dialog__label">{t("dialog.aspect_ratio_label")}</span>
             <div className="aspect-chip-row">
               {(isVideo ? VIDEO_ASPECT_RATIOS : IMAGE_ASPECT_RATIOS).map((ar) => (
                 <button
@@ -1165,9 +1173,10 @@ export function GenerationDialog() {
             surfaced beside each option. */}
         {isOmniVideo && (
           <div className="gen-dialog__field">
+            {/* i18n: do-not-translate (brand "Omni Flash" embedded in label value) */}
             <span className="gen-dialog__label">
-              Duration (Omni Flash)
-              <InfoTip tip="Omni Flash dispatches via video:batchAsyncGenerateVideoReferenceImages with the upstream image(s) as IMAGE_USAGE_TYPE_ASSET refs. Duration scales credit cost: 4s=15, 6s=20, 8s=25, 10s=30." />
+              {t("dialog.omni_duration_label")}
+              <InfoTip tip={t("dialog.omni_info_tip")} />
             </span>
             <div className="aspect-chip-row">
               {OMNI_FLASH_DURATIONS.map((d) => {
@@ -1180,8 +1189,10 @@ export function GenerationDialog() {
                     onClick={() =>
                       setOmniFlashDuration(d as OmniFlashDuration)
                     }
+                    // i18n: do-not-translate (duration/credit numeric format — Ns/Nc)
                     title={`${d}s — ${OMNI_FLASH_CREDIT_COST[d]} credits`}
                   >
+                    {/* i18n: do-not-translate (duration + credit cost — numeric label) */}
                     {d}s · {OMNI_FLASH_CREDIT_COST[d]}c
                   </button>
                 );
@@ -1199,8 +1210,8 @@ export function GenerationDialog() {
         {isVideo && (
           <div className="gen-dialog__field">
             <span className="gen-dialog__label">
-              Model
-              <InfoTip tip="Sticky — selection được lưu cho các lần dispatch sau (đồng bộ với Settings). Veo dùng i2v (1 source image); Omni Flash dùng reference ingredients (đa ảnh) với duration 4/6/8/10s chọn ở dưới." />
+              {t("dialog.model_label")}
+              <InfoTip tip={t("dialog.model_tip")} />
             </span>
             <select
               className="gen-dialog__select"
@@ -1224,6 +1235,7 @@ export function GenerationDialog() {
                 if (m.kind === "omni") {
                   return (
                     <option key="omni" value="omni">
+                      {/* i18n: do-not-translate (brand name "Omni Flash") */}
                       Omni Flash
                     </option>
                   );
@@ -1236,8 +1248,9 @@ export function GenerationDialog() {
                     value={`veo:${m.quality}`}
                     disabled={locked}
                   >
+                    {/* i18n: do-not-translate (m.label — VIDEO_MODEL_CHIPS brand label) */}
                     {m.label}
-                    {m.ultraOnly ? " · Ultra only" : ""}
+                    {m.ultraOnly ? ` · ${t("dialog.ultra_only")}` : ""}
                   </option>
                 );
               })}
@@ -1249,8 +1262,8 @@ export function GenerationDialog() {
         {isVideo && (
           <div className="gen-dialog__field">
             <span className="gen-dialog__label">
-              Camera
-              <InfoTip tip="Static = locked-off, không zoom/pan — phù hợp e-commerce product shot. Dynamic = để auto-prompt tự quyết camera move (dolly / micro-shift / …)." />
+              {t("dialog.camera_label")}
+              <InfoTip tip={t("dialog.camera_tip")} />
             </span>
             <div className="aspect-chip-row">
               {CAMERA_MOVEMENTS.map((c) => (
@@ -1274,12 +1287,12 @@ export function GenerationDialog() {
             above) and prompt nodes. */}
         {!isVideo && !isPrompt && (
           <div className="gen-dialog__field">
-            <span className="gen-dialog__label">Variants</span>
+            <span className="gen-dialog__label">{t("dialog.variants_label")}</span>
             <div className="variants-stepper">
               <button
                 type="button"
                 disabled={variants <= 1}
-                aria-label="Decrease variants"
+                aria-label={t("dialog.decrease_variants")}
                 onClick={() => setVariants((v) => Math.max(1, v - 1))}
               >
                 −
@@ -1288,12 +1301,12 @@ export function GenerationDialog() {
               <button
                 type="button"
                 disabled={variants >= 4}
-                aria-label="Increase variants"
+                aria-label={t("dialog.increase_variants")}
                 onClick={() => setVariants((v) => Math.min(4, v + 1))}
               >
                 +
               </button>
-              <span className="variants-stepper__hint">1–4 images per request</span>
+              <span className="variants-stepper__hint">{t("dialog.variants_hint")}</span>
             </div>
           </div>
         )}
@@ -1305,8 +1318,8 @@ export function GenerationDialog() {
         {isStoryboard && (
           <div className="gen-dialog__field">
             <span className="gen-dialog__label">
-              Grid
-              <InfoTip tip="Storyboard renders as a SINGLE composite image — Flow draws the whole grid as one picture. The topic field above is your story (e.g. Rùa và Thỏ); the locked template wraps it for you. For 2×3 / 2×4 the rows × cols flip with the aspect ratio so panels stay readable on both landscape and portrait composites." />
+              {t("dialog.grid_label")}
+              <InfoTip tip={t("dialog.grid_tip")} />
             </span>
             <div className="aspect-chip-row">
               {STORYBOARD_GRIDS.map((g) => {
@@ -1326,7 +1339,7 @@ export function GenerationDialog() {
                     type="button"
                     className={`aspect-chip${storyboardGrid === g ? " aspect-chip--active" : ""}`}
                     onClick={() => setStoryboardGrid(g)}
-                    title={`${total} panels (${dimsLabel})`}
+                    title={t("dialog.grid_panels_title", { total, dims: dimsLabel })}
                   >
                     {dimsLabel} · {total} panels
                   </button>
@@ -1338,6 +1351,7 @@ export function GenerationDialog() {
 
         {/* Footer */}
         <div className="gen-dialog__footer">
+          {/* i18n: do-not-translate (boardName — USER DATA; nodeCount — numeric) */}
           <span className="gen-dialog__board-ctx">
             {boardName} · {nodeCount} node{nodeCount !== 1 ? "s" : ""}
           </span>
@@ -1348,15 +1362,15 @@ export function GenerationDialog() {
             disabled={!canGenerate}
             title={
               nodeLLMBusy && !autoBuilding
-                ? "Backend is still composing — try again in a moment"
+                ? t("dialog.composing_wait")
                 : undefined
             }
           >
             {isWorking
-              ? "Building…"
+              ? t("dialog.building")
               : isPrompt
-              ? "Save ⌘↵"
-              : "Generate ⌘↵"}
+              ? t("dialog.save_kbd")
+              : t("dialog.generate_kbd")}
           </button>
         </div>
       </div>
