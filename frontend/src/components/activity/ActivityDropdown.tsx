@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import type { ActivityListItem } from "../../api/client";
 import { ActivityRow } from "./ActivityRow";
 
@@ -21,6 +22,7 @@ export function ActivityDropdown({
   onSelect,
   onCancel,
 }: ActivityDropdownProps) {
+  const { t } = useTranslation();
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,17 +46,17 @@ export function ActivityDropdown({
   }, [onClose]);
 
   return (
-    <div ref={panelRef} className="activity-dropdown" role="dialog" aria-label="Activity">
+    <div ref={panelRef} className="activity-dropdown" role="dialog" aria-label={t("activity.dropdown_title")}>
       <div className="activity-dropdown__header">
-        <span className="activity-dropdown__title">Activity</span>
+        <span className="activity-dropdown__title">{t("activity.dropdown_title")}</span>
         <span className="activity-dropdown__count">
-          {items.length} {items.length === 1 ? "item" : "items"}
+          {t("activity.dropdown_item", { count: items.length })}
         </span>
         <button
           type="button"
           className="activity-dropdown__close"
           onClick={onClose}
-          aria-label="Close activity"
+          aria-label={t("activity.dropdown_close")}
         >
           ×
         </button>
@@ -62,11 +64,11 @@ export function ActivityDropdown({
 
       <div className="activity-dropdown__list">
         {loading && items.length === 0 && (
-          <div className="activity-dropdown__placeholder">Loading…</div>
+          <div className="activity-dropdown__placeholder">{t("activity.loading")}</div>
         )}
         {!loading && items.length === 0 && (
           <div className="activity-dropdown__placeholder">
-            No activity yet. Run a generation or open Auto-Prompt to populate the feed.
+            {t("activity.empty")}
           </div>
         )}
         {items.map((item) => (
@@ -85,7 +87,7 @@ export function ActivityDropdown({
           className="activity-dropdown__load-more"
           onClick={onLoadMore}
         >
-          Load 50 more
+          {t("activity.load_more")}
         </button>
       )}
     </div>

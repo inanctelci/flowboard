@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { ActivityListItem } from "../../api/client";
 import { ActivityTypeIcon } from "./ActivityIcon";
 import { formatDuration, metaFor, relativeTime, statusMeta } from "./activity-meta";
@@ -10,6 +11,7 @@ interface ActivityRowProps {
 }
 
 export function ActivityRow({ item, onClick, onCancel }: ActivityRowProps) {
+  const { t } = useTranslation();
   const meta = metaFor(item.type);
   const status = statusMeta(item.status);
   const node = item.node_short_id ? `· #${item.node_short_id}` : "";
@@ -68,7 +70,7 @@ export function ActivityRow({ item, onClick, onCancel }: ActivityRowProps) {
               <span className="activity-row__dur"> · {dur}</span>
             )}
           {(item.status === "failed" || item.status === "timeout") && (
-            <span className="activity-row__hint"> · click for error</span>
+            <span className="activity-row__hint"> · {t("activity.row_click_for_error")}</span>
           )}
         </div>
       </div>
@@ -84,10 +86,10 @@ export function ActivityRow({ item, onClick, onCancel }: ActivityRowProps) {
           className="activity-row__cancel"
           onClick={handleCancel}
           disabled={busy}
-          aria-label={`Cancel ${meta.label}`}
-          title="Cancel"
+          aria-label={t("activity.row_cancel_aria", { label: meta.label })}
+          title={t("activity.row_cancel")}
         >
-          {busy ? "…" : "Cancel"}
+          {busy ? "…" : t("activity.row_cancel")}
         </button>
       )}
     </div>
