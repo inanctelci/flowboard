@@ -20,29 +20,13 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 function humanizeBackendError(token: string): string | null {
   const t = token.toLocaleLowerCase("en-US");
   if (t === "paygate_tier_unknown") {
-    return (
-      "Flowboard doesn't know your Google Flow plan tier yet — the "
-      + "extension hasn't seen a Flow request that exposes it. Open "
-      + "https://labs.google/fx/tools/flow in a tab and reload it once, "
-      + "then retry. Flowboard refuses to dispatch in this state to "
-      + "avoid silently serving Ultra users at the Pro checkpoint."
-    );
+    return i18n.t("error.paygate_tier_unknown");
   }
   if (t === "no_media_id_in_upload_response") {
-    return (
-      "Google Flow accepted the upload but didn't return a media handle — "
-      + "this usually means the image was silently rejected by Flow's "
-      + "content filter (logos, watermarks, copyrighted brand imagery). "
-      + "Try a different image or download it locally and upload as a file. "
-      + "Check the agent terminal for the full Flow response."
-    );
+    return i18n.t("error.upload_no_media_id");
   }
   if (t.includes("captcha_failed: no current window")) {
-    return (
-      "Chrome has no open windows for the extension to attach a Flow tab to. "
-      + "Open any Chrome window (or click the extension's '⋯ → Open Flow') "
-      + "and retry — Flowboard will reuse the existing window automatically."
-    );
+    return i18n.t("error.captcha_no_window");
   }
   if (t.startsWith("captcha_failed:")) {
     // CAPTCHA failures are rarely the user's fault — surface the underlying
@@ -52,7 +36,7 @@ function humanizeBackendError(token: string): string | null {
   if (t.startsWith("public_error_")) {
     // Veo / Imagen content filters are returned verbatim by Flow — these
     // are already self-describing, just prettify the prefix.
-    return token.replace(/^PUBLIC_ERROR_/i, "Flow rejected: ").replace(/_/g, " ");
+    return token.replace(/^PUBLIC_ERROR_/i, i18n.t("error.flow_rejected_prefix")).replace(/_/g, " ");
   }
   return null;
 }
