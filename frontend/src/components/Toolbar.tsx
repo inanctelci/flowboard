@@ -1,10 +1,12 @@
 import { useState, useRef, type KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { useBoardStore } from "../store/board";
 import { ActivityBell } from "./activity/ActivityBell";
 import { AiProviderBadge } from "./AiProviderBadge";
 import { SponsorButton } from "./SponsorDialog";
 
 export function Toolbar() {
+  const { t } = useTranslation();
   const boardName = useBoardStore((s) => s.boardName);
   const renameBoard = useBoardStore((s) => s.renameBoard);
 
@@ -35,6 +37,7 @@ export function Toolbar() {
 
   return (
     <div className="toolbar">
+      {/* i18n: do-not-translate — "Flowboard" is the product brand wordmark */}
       <span className="toolbar-wordmark">Flowboard</span>
       <span className="toolbar-sep" aria-hidden="true">/</span>
       {editing ? (
@@ -45,15 +48,16 @@ export function Toolbar() {
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitEdit}
           onKeyDown={onKeyDown}
-          aria-label="Board name"
+          aria-label={t("toolbar.board_name")}
         />
       ) : (
         <button
           className="toolbar-name-btn"
           onClick={startEdit}
-          aria-label="Rename board"
-          title="Click to rename"
+          aria-label={t("toolbar.rename_board")}
+          title={t("toolbar.click_to_rename")}
         >
+          {/* i18n: do-not-translate — boardName is USER DATA; "Untitled" is a TYPE_TITLE data default */}
           {boardName || "Untitled"}
         </button>
       )}

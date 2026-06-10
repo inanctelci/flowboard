@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getHealth, type HealthResponse } from "../api/client";
 
 function formatAge(sec: number | null | undefined): string | null {
@@ -11,6 +12,7 @@ function formatAge(sec: number | null | undefined): string | null {
 }
 
 export function StatusBar() {
+  const { t } = useTranslation();
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [agentOk, setAgentOk] = useState(false);
 
@@ -43,9 +45,13 @@ export function StatusBar() {
   const okCount = stats?.success_count ?? 0;
   const failCount = stats?.failed_count ?? 0;
 
-  const agentLabel = agentOk ? "● agent" : "○ agent";
+  const agentLabel = agentOk ? t("status.agent_connected") : t("status.agent_disconnected");
   const extLabel =
-    extConnected === null ? "? extension" : extConnected ? "● extension" : "○ extension";
+    extConnected === null
+      ? t("status.ext_unknown")
+      : extConnected
+        ? t("status.ext_connected")
+        : t("status.ext_disconnected");
 
   return (
     <div className="statusbar">
@@ -55,12 +61,13 @@ export function StatusBar() {
       {extConnected && stats?.flow_key_present && tokenAge && (
         <>
           <span style={{ margin: "0 8px", opacity: 0.4 }}>|</span>
-          <span style={{ color: "#8a8f99" }}>token {tokenAge}</span>
+          <span style={{ color: "#8a8f99" }}>{t("status.token_age", { age: tokenAge })}</span>
         </>
       )}
       {extConnected && reqCount > 0 && (
         <>
           <span style={{ margin: "0 8px", opacity: 0.4 }}>|</span>
+          {/* i18n: do-not-translate — req/ok/fail counts are technical numeric stats */}
           <span style={{ color: "#8a8f99" }}>
             req {reqCount} · <span style={{ color: "#6ee7b7" }}>✓{okCount}</span>
             {failCount > 0 && <> · <span style={{ color: "#ef4444" }}>✗{failCount}</span></>}

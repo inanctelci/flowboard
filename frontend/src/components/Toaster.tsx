@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useBoardStore } from "../store/board";
 import { useChatStore } from "../store/chat";
 import { useGenerationStore } from "../store/generation";
 import { usePipelineStore } from "../store/pipeline";
 
 export function Toaster() {
+  const { t } = useTranslation();
   const boardError = useBoardStore((s) => s.error);
   const chatError = useChatStore((s) => s.error);
   const genError = useGenerationStore((s) => s.error);
@@ -54,7 +56,7 @@ export function Toaster() {
         <button
           className="toaster__close"
           onClick={clearError}
-          aria-label="Dismiss error"
+          aria-label={t("toaster.dismiss")}
         >
           ×
         </button>

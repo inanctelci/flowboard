@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getLlmConfig,
   getLlmProviders,
@@ -96,6 +97,7 @@ function deriveCurrent(config: LLMConfig | null): LLMProviderName | null {
 }
 
 export function AiProvidersSection() {
+  const { t } = useTranslation();
   const [providers, setProviders] = useState<LLMProviderInfo[] | null>(null);
   const [config, setConfig] = useState<LLMConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -270,6 +272,7 @@ export function AiProvidersSection() {
   return (
     <div className="ai-providers-section">
       <div className="ai-providers-section__intro">
+        {/* i18n: do-not-translate — "Flowboard" is a brand name in this sentence */}
         Pick which AI powers Flowboard. One provider serves all three
         features — switching is one decision, not three.
       </div>
@@ -286,7 +289,7 @@ export function AiProvidersSection() {
       )}
 
       <div className="provider-group">
-        <div className="provider-group__title">OAuth Providers</div>
+        <div className="provider-group__title">{t("settings.providers_section_title")}</div>
         <div className="provider-group__cards">
           {SHOWN_PROVIDERS.map((name) => {
             const p = byName[name];
@@ -361,7 +364,7 @@ export function AiProvidersSection() {
                     ? "Applying…"
                     : selectionUnchanged
                       ? "Already active"
-                      : "Apply changes"}
+                      : t("settings.apply")}
                 </button>
               </div>
 
@@ -396,6 +399,7 @@ interface ConnectionTestRowProps {
  * 3-feature test list — one ping is sufficient because all 3 features
  * point at the same provider in single-provider mode. */
 function ConnectionTestRow({ providerLabel, result, onTest }: ConnectionTestRowProps) {
+  const { t } = useTranslation();
   const icon =
     result.state === "ok"
       ? "✓"
@@ -443,12 +447,12 @@ function ConnectionTestRow({ providerLabel, result, onTest }: ConnectionTestRowP
         disabled={result.state === "testing"}
       >
         {result.state === "testing"
-          ? "Testing…"
+          ? t("settings.testing")
           : result.state === "ok"
             ? "Re-test"
             : result.state === "fail"
               ? "Retry"
-              : "Test"}
+              : t("settings.test")}
       </button>
     </div>
   );
@@ -507,6 +511,7 @@ function CliReference({ provider }: CliReferenceProps) {
 function labelOf(name: LLMProviderName): string {
   switch (name) {
     case "claude":
+      // i18n: do-not-translate — brand names
       return "Claude";
     case "gemini":
       return "Gemini";

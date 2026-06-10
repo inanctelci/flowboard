@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { LLMProviderInfo, LLMProviderName } from "../../api/client";
 
 /**
@@ -30,25 +31,26 @@ const PROVIDER_META: Record<
   LLMProviderName,
   { name: string; tagline: string }
 > = {
+  // i18n: do-not-translate — Claude Code, Gemini CLI, OpenAI Codex are brand identifiers
   claude:  { name: "Claude Code",   tagline: "Anthropic CLI · OAuth" },
   gemini:  { name: "Gemini CLI",    tagline: "Google CLI · OAuth" },
   openai:  { name: "OpenAI Codex",  tagline: "ChatGPT CLI · OAuth" },
 };
-
-function statusLabel(p: LLMProviderInfo): string {
-  if (p.available && p.configured) return "Connected";
-  if (p.lastError === "not_authenticated") return "Not signed in";
-  if (p.requiresKey && !p.configured) return "API key needed";
-  return "Setup needed";
-}
 
 function statusKind(p: LLMProviderInfo): "ok" | "warn" {
   return p.available && p.configured ? "ok" : "warn";
 }
 
 export function ProviderCard({ provider, selected, current, onSelect }: ProviderCardProps) {
+  const { t } = useTranslation();
   const meta = PROVIDER_META[provider.name];
   const kind = statusKind(provider);
+
+  // Map status labels to i18n keys
+  const statusText = (() => {
+    if (provider.available && provider.configured) return t("settings.configured");
+    return t("settings.not_configured");
+  })();
 
   return (
     <button
@@ -60,13 +62,14 @@ export function ProviderCard({ provider, selected, current, onSelect }: Provider
       aria-pressed={selected}
     >
       <div className="provider-card__head">
+        {/* i18n: do-not-translate — brand names (Claude Code, Gemini CLI, OpenAI Codex) */}
         <span className="provider-card__name">{meta.name}</span>
         <span className="provider-card__tagline">{meta.tagline}</span>
       </div>
       <div className="provider-card__foot">
         <span className={`provider-card__status provider-card__status--${kind}`}>
           <span className="provider-card__status-dot" aria-hidden="true">●</span>
-          {statusLabel(provider)}
+          {statusText}
         </span>
         {current && !selected && (
           <span className="provider-card__current-badge">Active</span>

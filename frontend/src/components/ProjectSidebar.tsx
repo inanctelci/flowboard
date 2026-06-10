@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n/i18n";
 import { useBoardStore } from "../store/board";
 import { AccountPanel } from "./AccountPanel";
 import {
@@ -14,6 +16,7 @@ import {
  * /api/boards CRUD that already cascades to children on delete.
  */
 export function ProjectSidebar() {
+  const { t } = useTranslation();
   const boards = useBoardStore((s) => s.boards);
   const activeId = useBoardStore((s) => s.boardId);
   const switchBoard = useBoardStore((s) => s.switchBoard);
@@ -62,7 +65,7 @@ export function ProjectSidebar() {
         (b) => !b.exists_on_flow,
       ).length;
       if (orphans === 0) {
-        setSyncSummary("All boards already on Flow ✓");
+        setSyncSummary(i18n.t("sidebar.all_boards_synced"));
       } else {
         const res = await syncBoardsUpToFlow();
         await refreshStatus();
@@ -70,12 +73,13 @@ export function ProjectSidebar() {
         const fail = res.failed.length;
         setSyncSummary(
           fail === 0
-            ? `Pushed ${ok} board${ok !== 1 ? "s" : ""} to Flow ✓`
-            : `Pushed ${ok}, ${fail} failed — see agent log`,
+            ? i18n.t("sidebar.boards_pushed_one", { count: ok })
+            : i18n.t("sidebar.boards_pushed_partial", { ok, fail }),
         );
       }
     } catch (err) {
-      setSyncError(err instanceof Error ? err.message : "sync failed");
+      // store-error: use headless i18n.t for the fallback message
+      setSyncError(err instanceof Error ? err.message : i18n.t("sidebar.sync_failed"));
     } finally {
       setSyncing(false);
     }
@@ -108,6 +112,7 @@ export function ProjectSidebar() {
   }, [openMenuId]);
 
   function handleNew() {
+    // i18n: do-not-translate — "Untitled" is a USER DATA default for new board names
     setNewDialogName("Untitled");
     setNewDialogOpen(true);
     setTimeout(() => newDialogInputRef.current?.select(), 30);
@@ -121,6 +126,7 @@ export function ProjectSidebar() {
 
   async function commitNewDialog() {
     if (newDialogBusy) return;
+    // i18n: do-not-translate — "Untitled" is a USER DATA default written to the database
     const name = newDialogName.trim() || "Untitled";
     setNewDialogBusy(true);
     try {
@@ -201,13 +207,13 @@ export function ProjectSidebar() {
   return (
     <aside className={`project-sidebar${collapsed ? " project-sidebar--collapsed" : ""}`}>
       <div className="project-sidebar__header">
-        {!collapsed && <span className="project-sidebar__title">Projects</span>}
+        {!collapsed && <span className="project-sidebar__title">{t("sidebar.projects")}</span>}
         <button
           type="button"
           className="project-sidebar__icon-btn"
           onClick={() => setCollapsed((c) => !c)}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title={collapsed ? "Expand" : "Collapse"}
+          aria-label={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
+          title={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
         >
           {collapsed ? "›" : "‹"}
         </button>
@@ -220,22 +226,22 @@ export function ProjectSidebar() {
               className="project-sidebar__new"
               onClick={handleNew}
             >
-              <span aria-hidden="true">+</span> New project
+              <span aria-hidden="true">+</span> {t("sidebar.new_project")}
             </button>
             <button
               type="button"
               className="project-sidebar__sync"
               onClick={handleSyncClick}
               disabled={syncing}
-              title="Push every local board up to Google Flow — creates a Flow project for any board that's missing one"
-              aria-label="Sync local boards up to Google Flow"
+              title={t("sidebar.flow_sync_label")}
+              aria-label={t("sidebar.flow_sync_title")}
             >
               {syncing ? "…" : "🔄"}
             </button>
           </div>
           {syncError && (
             <div className="project-sidebar__sync-error" role="status">
-              Flow sync: {syncError}
+              {t("sidebar.flow_sync_prefix")}{syncError}
             </div>
           )}
           {syncSummary && !syncError && (
@@ -280,15 +286,16 @@ export function ProjectSidebar() {
                         onClick={() => switchBoard(b.id)}
                         title={
                           isOrphan
-                            ? `${b.name} — Flow project ${status?.flow_project_id ?? ""} không tồn tại trên Google Flow. Click ⋯ → Rebind to re-link.`
+                            ? `${b.name} — Flow project ${status?.flow_project_id ?? ""} not found on Google Flow. Click ⋯ → Rebind to re-link.`
                             : b.name
                         }
                       >
-                        {b.name || "Untitled"}
+                        {/* i18n: do-not-translate — b.name is USER DATA (board name) */}
+                        {b.name || t("sidebar.untitled")}
                         {isOrphan && (
                           <span
                             className="project-sidebar__orphan-badge"
-                            title="Flow project not found — rebind required"
+                            title={t("sidebar.orphan_badge")}
                             aria-label="orphan"
                           >
                             ⚠
@@ -301,7 +308,7 @@ export function ProjectSidebar() {
                         onClick={() =>
                           setOpenMenuId((cur) => (cur === b.id ? null : b.id))
                         }
-                        aria-label="Project actions"
+                        aria-label={t("sidebar.project_actions")}
                       >
                         ⋯
                       </button>
@@ -311,14 +318,14 @@ export function ProjectSidebar() {
                             type="button"
                             onClick={() => startRename(b.id, b.name)}
                           >
-                            Rename
+                            {t("sidebar.rename")}
                           </button>
                           <button
                             type="button"
                             className="project-sidebar__menu-danger"
                             onClick={() => openDeleteConfirm(b.id, b.name)}
                           >
-                            Delete
+                            {t("sidebar.delete")}
                           </button>
                         </div>
                       )}
@@ -328,7 +335,7 @@ export function ProjectSidebar() {
               );
             })}
             {boards.length === 0 && (
-              <li className="project-sidebar__empty">No projects yet</li>
+              <li className="project-sidebar__empty">{t("sidebar.no_projects")}</li>
             )}
           </ul>
         </>
@@ -354,12 +361,10 @@ export function ProjectSidebar() {
             aria-labelledby="delete-project-title"
           >
             <h2 id="delete-project-title" className="project-modal__title">
-              Delete project?
+              {t("sidebar.delete_board")}
             </h2>
             <p className="project-modal__hint">
-              <strong>"{deleteTarget.name}"</strong> sẽ bị xoá vĩnh viễn cùng
-              với tất cả nodes, edges, generations, và assets bên trong. Không
-              thể khôi phục.
+              {t("sidebar.delete_permanent_hint")}
             </p>
             <div className="project-modal__actions">
               <button
@@ -368,7 +373,7 @@ export function ProjectSidebar() {
                 onClick={cancelDelete}
                 disabled={deleteBusy}
               >
-                Cancel
+                {t("sidebar.cancel")}
               </button>
               <button
                 type="button"
@@ -377,7 +382,7 @@ export function ProjectSidebar() {
                 disabled={deleteBusy}
                 autoFocus
               >
-                {deleteBusy ? "Deleting…" : "Delete"}
+                {deleteBusy ? t("sidebar.deleting") : t("sidebar.delete")}
               </button>
             </div>
           </div>
@@ -399,10 +404,10 @@ export function ProjectSidebar() {
             aria-labelledby="new-project-title"
           >
             <h2 id="new-project-title" className="project-modal__title">
-              New project
+              {t("sidebar.new_board")}
             </h2>
             <p className="project-modal__hint">
-              Tên project hiển thị trong sidebar. Có thể đổi sau.
+              {t("sidebar.new_project_hint")}
             </p>
             <input
               ref={newDialogInputRef}
@@ -415,7 +420,7 @@ export function ProjectSidebar() {
                 if (e.key === "Enter") commitNewDialog();
                 if (e.key === "Escape") closeNewDialog();
               }}
-              placeholder="Untitled"
+              placeholder={t("sidebar.new_project_placeholder")}
               disabled={newDialogBusy}
               autoFocus
             />
@@ -426,7 +431,7 @@ export function ProjectSidebar() {
                 onClick={closeNewDialog}
                 disabled={newDialogBusy}
               >
-                Cancel
+                {t("sidebar.cancel")}
               </button>
               <button
                 type="button"
@@ -434,7 +439,7 @@ export function ProjectSidebar() {
                 onClick={commitNewDialog}
                 disabled={newDialogBusy}
               >
-                {newDialogBusy ? "Creating…" : "Create"}
+                {newDialogBusy ? t("sidebar.creating") : t("sidebar.create")}
               </button>
             </div>
           </div>
