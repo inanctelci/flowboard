@@ -48,7 +48,13 @@ Plans:
   3. Product and model names (`"Veo 3.1 Lite"`, `"Nano Banana Pro"`, `"Omni Flash"`) do not appear as keys or values in `en.json` — they remain in `frontend/src/constants/`.
   4. The app renders in the browser with the same English UI as before extraction — no blank labels, no raw key strings visible, no console translation-miss warnings.
   5. Store error strings (from `generation.ts` and `humanizeBackendError`) and activity-meta labels appear in English in the UI when their code paths are exercised — confirming non-JSX extraction is complete.
-**Plans**: TBD
+**Plans:** 5 plans
+Plans:
+- [ ] 02-01-PLAN.md — Canvas extraction (AddNodePalette, NodeCard, VariantEdge, Board): ~55 inventory rows; highest-risk file (NodeCard) with user-data adjacency
+- [ ] 02-02-PLAN.md — Dialogs + ResultViewer extraction (GenerationDialog, ResultViewer, SponsorDialog, AiProviderDialog, ForcedSetupGate, ProviderSetupModal): ~80 inventory rows; includes Vietnamese-to-English rewriting in GenerationDialog
+- [ ] 02-03-PLAN.md — Panels + Toolbar extraction (SettingsPanel, ProjectSidebar, ReferencesPanel, Toolbar, Toaster, StatusBar, AccountPanel, ChatSidebar, AiProviderBadge, AiProvidersSection, ProviderCard): ~30 inventory rows
+- [ ] 02-04-PLAN.md — Activity feed extraction (ActivityBell, ActivityDropdown, ActivityRow, ActivityDetailModal, activity-meta.ts): ~20 rows; activity-meta.ts uses headless i18n.t() (EXTRACT-05)
+- [ ] 02-05-PLAN.md — Headless code extraction (store/generation.ts, store/board.ts comment rewrite, store/pipeline.ts, api/client.ts humanizeBackendError, App.tsx, constants/character.ts consumers): ~15 rows; satisfies EXTRACT-04
 
 ---
 
@@ -88,7 +94,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infra + Audit | 0/2 | Not started | - |
-| 2. English Extraction | 0/2 | Not started | - |
+| 2. English Extraction | 0/5 | Not started | - |
 | 3. Turkish + Switcher | 0/2 | Not started | - |
 | 4. Polish + Verify | 0/1 | Not started | - |
 
@@ -120,4 +126,4 @@ Plans:
 
 ---
 
-*Last updated: 2026-06-10 — Phase 1 plans created (01-01-PLAN.md i18n layer + bug fixes, 01-02-PLAN.md string inventory audit)*
+*Last updated: 2026-06-10 — Phase 2 plans created (5 plans: canvas, dialogs+viewer, panels+toolbar, activity, headless-code)*
