@@ -24,14 +24,7 @@ import {
   patchEdge,
   patchNode,
 } from "../api/client";
-import {
-  CHARACTER_GENDERS,
-  CHARACTER_COUNTRIES,
-  CHARACTER_VIBES,
-  type GenderKey,
-  type CountryKey,
-  type VibeKey,
-} from "../constants/character";
+import { CharacterWizard } from "./character/CharacterWizard";
 
 const REF_SOURCE_TYPES = new Set([
   "character",
@@ -41,37 +34,6 @@ const REF_SOURCE_TYPES = new Set([
   // that can feed downstream image / Omni-video / character nodes.
   "Storyboard",
 ]);
-
-function buildCharacterPrompt(
-  gender: GenderKey | null,
-  country: CountryKey | null,
-  vibe: VibeKey,
-  extras: string,
-): string {
-  const g = CHARACTER_GENDERS.find((x) => x.key === gender)?.tag;
-  const c = CHARACTER_COUNTRIES.find((x) => x.key === country)?.tag;
-  const subject = [c, g].filter(Boolean).join(" ") || "person";
-  const vibeTokens = CHARACTER_VIBES.find((v) => v.key === vibe)?.tokens ?? [];
-  const tail = extras.trim();
-  // Pose anchor is front-loaded (right after subject) because diffusion
-  // models weight earlier tokens more — vibe tokens like "editorial /
-  // magazine beauty" otherwise pull toward fashion 3/4 turns. The trailing
-  // negatives reinforce the lock so the headshot stays usable as a
-  // character reference across every downstream shot.
-  return [
-    `Studio portrait headshot of a ${subject} character`,
-    "subject directly faces the camera, head perfectly straight with zero tilt and zero turn",
-    "shoulders square to camera, axially symmetric pose, nose centered, both eyes equally visible at the same height",
-    ...vibeTokens,
-    tail || null,
-    "head and shoulders framing, centered composition, sharp focus on face",
-    "strictly front-on orientation, no head tilt, no head turn, no profile angle, no three-quarter view, no over-the-shoulder pose",
-    "no glasses, no hat, no mask, no occlusion, nothing covering the face",
-    "photorealistic, ultra-detailed, consistent character reference",
-  ]
-    .filter(Boolean)
-    .join(", ");
-}
 
 const IMAGE_ASPECT_RATIOS = [
   { key: "IMAGE_ASPECT_RATIO_SQUARE", label: "1:1" },
@@ -224,12 +186,6 @@ export function GenerationDialog() {
   // handler with a locked template prompt wrapping the user's topic
   // into a single composite NxN grid. See lib/storyboardPrompt.ts.
   const [storyboardGrid, setStoryboardGrid] = useState<StoryboardGrid>("2x2");
-
-  // Character builder state — only used when targetType === "character".
-  const [charGender, setCharGender] = useState<GenderKey | null>(null);
-  const [charCountry, setCharCountry] = useState<CountryKey | null>(null);
-  const [charVibe, setCharVibe] = useState<VibeKey>("clean");
-  const [charExtras, setCharExtras] = useState("");
 
   // Auto-prompt state — set when the user submits an empty prompt and we
   // synthesise one from upstream context. Surfaced as a small ✨ badge.
@@ -442,10 +398,6 @@ export function GenerationDialog() {
         .getState()
         .nodes.find((n) => n.id === rfId)?.data;
       setStoryboardGrid(normaliseStoryboardGrid(openNodeData?.storyboardGrid));
-      setCharGender(null);
-      setCharCountry(null);
-      setCharVibe("clean");
-      setCharExtras("");
       setAutoBuilding(false);
       setAutoPromptUsed(false);
       // Default-select every upstream source variant for video targets so
@@ -635,30 +587,11 @@ export function GenerationDialog() {
       closeGenerationDialog();
       return;
     }
+    // Character nodes: handled entirely by CharacterWizard (submit + patch + dispatch).
+    // The wizard calls onDone() which maps to closeGenerationDialog().
+    // This branch is unreachable when isCharacter is true because the footer
+    // CTA is hidden for character nodes (the wizard renders its own button).
     if (isCharacter) {
-      const built = buildCharacterPrompt(charGender, charCountry, charVibe, charExtras);
-      // Stamp the picker selections directly onto the node so the detail
-      // panel can show "Country: Nhật Bản · Vibe: Douyin" later. These
-      // choices don't round-trip through the backend params (they're
-      // baked into the prompt text), so we persist them here at dispatch
-      // time. patchNode merges, so this fires alongside the generation
-      // store's own status patches without colliding.
-      const charStamp: Record<string, unknown> = {};
-      if (charCountry) charStamp.charCountry = charCountry;
-      if (charVibe) charStamp.charVibe = charVibe;
-      if (charGender) charStamp.charGender = charGender;
-      if (Object.keys(charStamp).length > 0) {
-        useBoardStore.getState().updateNodeData(rfId, charStamp);
-        const dbId = parseInt(rfId, 10);
-        if (!isNaN(dbId)) {
-          patchNode(dbId, { data: charStamp }).catch(() => {});
-        }
-      }
-      dispatchGeneration(rfId, {
-        prompt: built,
-        aspectRatio,
-        variantCount: variants,
-      });
       closeGenerationDialog();
       return;
     }
@@ -757,8 +690,10 @@ export function GenerationDialog() {
   // Veo i2v needs at least one selected source variant; Omni Flash
   // needs at least one ingredient (any upstream image-bearing node).
   // Other targets just need the LLM not be busy.
+  // Character nodes: wizard handles its own canGenerate gate internally.
+  // This canGenerate only applies to non-character dialog paths.
   const canGenerate = isCharacter
-    ? charGender !== null || charCountry !== null || charExtras.trim().length > 0
+    ? true
     : isOmniVideo
     ? refSourceNodes.length > 0 && !isWorking
     : isVideo
@@ -867,78 +802,11 @@ export function GenerationDialog() {
           </div>
         )}
 
-        {/* Character builder (character node only) */}
+        {/* Character wizard (character node only) — replaces the old inline
+            chip builder. CharacterWizard owns state, prompt assembly,
+            patchNode, dispatchGeneration, and calls onDone → closeGenerationDialog. */}
         {isCharacter && (
-          <>
-            <div className="gen-dialog__field">
-              <span className="gen-dialog__label">{t("dialog.gender_label")}</span>
-              <div className="aspect-chip-row">
-                {CHARACTER_GENDERS.map((g) => (
-                  <button
-                    key={g.key}
-                    type="button"
-                    className={`aspect-chip${charGender === g.key ? " aspect-chip--active" : ""}`}
-                    onClick={() => setCharGender(charGender === g.key ? null : g.key)}
-                  >
-                    {g.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="gen-dialog__field">
-              <span className="gen-dialog__label">{t("dialog.country_label")}</span>
-              <div className="aspect-chip-row">
-                {CHARACTER_COUNTRIES.map((c) => (
-                  <button
-                    key={c.key}
-                    type="button"
-                    className={`aspect-chip${charCountry === c.key ? " aspect-chip--active" : ""}`}
-                    onClick={() => setCharCountry(charCountry === c.key ? null : c.key)}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="gen-dialog__field">
-              <span className="gen-dialog__label">{t("dialog.vibe_label")}</span>
-              <div className="aspect-chip-row">
-                {CHARACTER_VIBES.map((v) => (
-                  <button
-                    key={v.key}
-                    type="button"
-                    className={`aspect-chip${charVibe === v.key ? " aspect-chip--active" : ""}`}
-                    onClick={() => setCharVibe(v.key)}
-                  >
-                    {v.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="gen-dialog__field">
-              <div className="gen-dialog__label-row">
-                <label className="gen-dialog__label" htmlFor="gen-char-extras">
-                  {t("dialog.extras_label")}
-                  <InfoTip tip={t("dialog.extras_tip")} />
-                </label>
-                {/* i18n: do-not-translate (character count format "N/200" — numeric) */}
-                <span className="gen-dialog__char-count">{charExtras.length}/200</span>
-              </div>
-              <textarea
-                id="gen-char-extras"
-                ref={firstFocusRef}
-                className="gen-dialog__textarea"
-                rows={3}
-                maxLength={200}
-                value={charExtras}
-                onChange={(e) => setCharExtras(e.target.value)}
-                placeholder={t("dialog.extras_placeholder")}
-              />
-            </div>
-          </>
+          <CharacterWizard rfId={rfId} onDone={closeGenerationDialog} />
         )}
 
         {/* Source image — Veo i2v ONLY. Omni Flash uses the ingredient
@@ -1349,30 +1217,32 @@ export function GenerationDialog() {
           </div>
         )}
 
-        {/* Footer */}
-        <div className="gen-dialog__footer">
-          {/* i18n: do-not-translate (boardName — USER DATA; nodeCount — numeric) */}
-          <span className="gen-dialog__board-ctx">
-            {boardName} · {nodeCount} node{nodeCount !== 1 ? "s" : ""}
-          </span>
-          <button
-            className="gen-dialog__cta"
-            type="button"
-            onClick={handleSubmit}
-            disabled={!canGenerate}
-            title={
-              nodeLLMBusy && !autoBuilding
-                ? t("dialog.composing_wait")
-                : undefined
-            }
-          >
-            {isWorking
-              ? t("dialog.building")
-              : isPrompt
-              ? t("dialog.save_kbd")
-              : t("dialog.generate_kbd")}
-          </button>
-        </div>
+        {/* Footer — hidden for character nodes (wizard provides its own CTA) */}
+        {!isCharacter && (
+          <div className="gen-dialog__footer">
+            {/* i18n: do-not-translate (boardName — USER DATA; nodeCount — numeric) */}
+            <span className="gen-dialog__board-ctx">
+              {boardName} · {nodeCount} node{nodeCount !== 1 ? "s" : ""}
+            </span>
+            <button
+              className="gen-dialog__cta"
+              type="button"
+              onClick={handleSubmit}
+              disabled={!canGenerate}
+              title={
+                nodeLLMBusy && !autoBuilding
+                  ? t("dialog.composing_wait")
+                  : undefined
+              }
+            >
+              {isWorking
+                ? t("dialog.building")
+                : isPrompt
+                ? t("dialog.save_kbd")
+                : t("dialog.generate_kbd")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
