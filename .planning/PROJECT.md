@@ -18,7 +18,33 @@ bugs fixed (Vietnamese in `formatRelativeTime`, dotted-i in
 `humanizeBackendError`, static `html lang`), contributor onboarding doc, parity
 CI script. See `.planning/milestones/v1.0-ROADMAP.md`.
 
-**Next:** Planning milestone (`/gsd-new-milestone`).
+**Active:** v1.1 — Character Creation Rework. Replace hardcoded preset system
+(genders / countries / vibes) with a guided multi-step wizard producing
+structured, reusable character configurations.
+
+## Current Milestone: v1.1 Character Creation Rework
+
+**Goal:** Replace the hardcoded character preset system (`CHARACTER_GENDERS` /
+`CHARACTER_COUNTRIES` / `CHARACTER_VIBES`) with a guided multi-step wizard that
+produces structured, reusable character configurations — overcoming the
+narrowness of frozen Vietnamese-labelled presets that don't reflect the
+diversity of characters users want to create.
+
+**Target features:**
+- Guided multi-step wizard for character creation (identity → appearance →
+  styling → expression/lighting → review), replacing the dropdown-driven preset
+  picker in `GenerationDialog`
+- Structured data model — typed fields persisted on `node.data` (gender,
+  ethnicity/origin, age, hair, outfit, vibe, expression, lighting); prompt
+  assembled at dispatch from those fields, with the existing framing anchors
+  preserved
+- Reusable character library — user can save their own character
+  configurations as named presets and reuse them across boards
+- Removal + migration — delete the old presets module and strip / backfill
+  existing nodes' `charCountry` / `charVibe` fields so v1.0 boards still load
+  without console errors
+- i18n coverage — add EN + TR strings for every new wizard surface, maintaining
+  v1.0 parity discipline (`scripts/check-i18n-parity.mjs` stays green)
 
 ## Core Value
 
@@ -50,9 +76,10 @@ generation, reference, or planner functionality.
 
 ### Active
 
-<!-- To be defined by the next /gsd-new-milestone. The 4 deferred items below
-     were carried over from v1.0 and need maintainer manual verification before
-     they can be ticked off in the validated list. -->
+<!-- v1.1 Character Creation Rework requirements are tracked in
+     .planning/REQUIREMENTS.md. The 4 items below were deferred at v1.0 close
+     and still need maintainer manual verification before they can be ticked
+     off in the validated list — they do not block v1.1. -->
 
 - [ ] **VERIFY-01** (deferred from v1.0): Manual end-to-end Turkish drive of a full generation flow with no console errors
 - [ ] **VERIFY-02** (deferred from v1.0): Layout review at Turkish string lengths at 1280×800 (no clipping)
@@ -138,4 +165,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-16 after v1.0 milestone close (i18n milestone shipped)*
+*Last updated: 2026-06-16 — v1.1 milestone (Character Creation Rework) opened*
