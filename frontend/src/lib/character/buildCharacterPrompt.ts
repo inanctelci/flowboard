@@ -3,6 +3,12 @@
 // parameterize. Unset fields contribute zero tokens (.filter(Boolean), D-11).
 // Token delimiter is ", " (D-12). Call buildCharacterPrompt() with any
 // partial CharacterConfig; it always returns a non-empty string.
+//
+// Phase 6 hair token truth table (A/B parity):
+//   { charHair: "long black" }                       → token: "long black"        (legacy path)
+//   { charHairColor: "black", charHairStyle: "long" } → token: "black, long"      (new path, color-first)
+//   { charHairColor: "blonde" }                       → token: "blonde"            (color only)
+//   {}                                                → zero hair tokens
 import type { CharacterConfig } from "./schema";
 import { CHARACTER_VIBES } from "../../constants/character";
 
@@ -59,7 +65,15 @@ export function buildCharacterPrompt(config: Partial<CharacterConfig>): string {
     "shoulders square to camera, axially symmetric pose, nose centered, both eyes equally visible at the same height";
 
   // 3. Appearance tokens
-  const hairToken = config.charHair ?? null;
+  // Phase 6: prefer charHairColor + charHairStyle split fields; fall back
+  // to legacy charHair composite so boards created before Phase 6 render
+  // identically (A/B parity — see truth table in file header above).
+  const hairToken: string | null = (() => {
+    if (config.charHairColor || config.charHairStyle) {
+      return [config.charHairColor, config.charHairStyle].filter(Boolean).join(", ") || null;
+    }
+    return config.charHair ?? null;
+  })();
   const skinToken = config.charSkinTone ? `${config.charSkinTone} skin` : null;
   const outfitToken = config.charOutfit ?? null;
 
