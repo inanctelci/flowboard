@@ -14,6 +14,7 @@ import {
   type Board,
   type NodeType,
 } from "../api/client";
+import { migrateCharacterNodeData } from "../lib/character/migrate";
 
 export type { NodeType };
 
@@ -86,6 +87,18 @@ export interface FlowboardNodeData extends Record<string, unknown> {
   charCountry?: string;
   charVibe?: string;
   charGender?: string;
+  // v1.1 character-builder structured fields (Phase 5 DATA-01) —
+  // stable English keys / English prose stored on node.data; never
+  // translated display labels (locale-independent boards). Legacy
+  // charCountry/charVibe/charGender above are retained for backward
+  // read access until Phase 7 (MIGRATE-02) removes them.
+  charEthnicity?: string;
+  charAge?: string;
+  charHair?: string;
+  charSkinTone?: string;
+  charOutfit?: string;
+  charExpression?: string;
+  charLighting?: string;
   error?: string;
   // Storyboard layout. The Storyboard node is now a thin image-node
   // wrapper that generates a single composite using a locked prompt
@@ -265,7 +278,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         id: String(n.id),
         type: n.type,
         position: { x: n.x, y: n.y },
-        data: {
+        data: migrateCharacterNodeData({
           type: n.type,
           shortId: n.short_id,
           title: (n.data["title"] as string | undefined) ?? TYPE_TITLE[n.type],
@@ -283,8 +296,15 @@ export const useBoardStore = create<BoardState>((set, get) => ({
           charCountry: n.data["charCountry"] as string | undefined,
           charVibe: n.data["charVibe"] as string | undefined,
           charGender: n.data["charGender"] as string | undefined,
+          charEthnicity: n.data["charEthnicity"] as string | undefined,
+          charAge: n.data["charAge"] as string | undefined,
+          charHair: n.data["charHair"] as string | undefined,
+          charSkinTone: n.data["charSkinTone"] as string | undefined,
+          charOutfit: n.data["charOutfit"] as string | undefined,
+          charExpression: n.data["charExpression"] as string | undefined,
+          charLighting: n.data["charLighting"] as string | undefined,
           storyboardGrid: n.data["storyboardGrid"] as StoryboardGrid | undefined,
-        },
+        }),
       }));
 
       const edges: Edge[] = detail.edges.map(edgeFromDto);
@@ -321,7 +341,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         id: String(n.id),
         type: n.type,
         position: { x: n.x, y: n.y },
-        data: {
+        data: migrateCharacterNodeData({
           type: n.type,
           shortId: n.short_id,
           title: (n.data["title"] as string | undefined) ?? TYPE_TITLE[n.type],
@@ -339,8 +359,15 @@ export const useBoardStore = create<BoardState>((set, get) => ({
           charCountry: n.data["charCountry"] as string | undefined,
           charVibe: n.data["charVibe"] as string | undefined,
           charGender: n.data["charGender"] as string | undefined,
+          charEthnicity: n.data["charEthnicity"] as string | undefined,
+          charAge: n.data["charAge"] as string | undefined,
+          charHair: n.data["charHair"] as string | undefined,
+          charSkinTone: n.data["charSkinTone"] as string | undefined,
+          charOutfit: n.data["charOutfit"] as string | undefined,
+          charExpression: n.data["charExpression"] as string | undefined,
+          charLighting: n.data["charLighting"] as string | undefined,
           storyboardGrid: n.data["storyboardGrid"] as StoryboardGrid | undefined,
-        },
+        }),
       }));
       const edges: Edge[] = detail.edges.map(edgeFromDto);
       set({
