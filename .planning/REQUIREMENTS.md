@@ -9,11 +9,11 @@ Each requirement maps to exactly one roadmap phase. Verification is manual / TS-
 
 ### Data Model + Prompt Assembler
 
-- [ ] **DATA-01**: `FlowboardNodeData` extended with flat top-level character fields (`charGender`, `charEthnicity`, `charAge`, `charHair`, `charSkinTone`, `charOutfit`, `charExpression`, `charLighting`) — no nested `character: { ... }` object (avoids shallow-merge PATCH wholesale-replace anti-pattern documented in `CLAUDE.md` and `frontend/src/api/client.ts:196-219`)
-- [ ] **DATA-02**: `CharacterConfig` Zod schema (`zod@^4`) as single source of truth; TypeScript type derived via `z.infer<>`; runtime parse on every localStorage read (prevents corrupt-state-blocks-app risk)
-- [ ] **DATA-03**: Pure prompt-assembler module `frontend/src/lib/character/buildCharacterPrompt.ts` (following `lib/storyboardPrompt.ts` pattern) — deterministic token ordering, framing anchors (frontal face, both eyes, no occlusion, head-and-shoulders) preserved at fixed positions
-- [ ] **DATA-04**: `toDataPatch(wizardState, originalData)` helper emits only changed keys for `patchNode`; cleared fields → `null` (delete sentinel); untouched fields omitted entirely; verified that submit does not wipe `mediaId` / `aiBrief` / other non-character data
-- [ ] **DATA-05**: Stable English keys / user-typed English prose stored in `node.data` for every structured field — never translated display labels (locale-independent boards; assembler stays correct on any installed locale)
+- [x] **DATA-01**: `FlowboardNodeData` extended with flat top-level character fields (`charGender`, `charEthnicity`, `charAge`, `charHair`, `charSkinTone`, `charOutfit`, `charExpression`, `charLighting`) — no nested `character: { ... }` object (avoids shallow-merge PATCH wholesale-replace anti-pattern documented in `CLAUDE.md` and `frontend/src/api/client.ts:196-219`) — DONE 05-01
+- [x] **DATA-02**: `CharacterConfig` Zod schema (`zod@^4`) as single source of truth; TypeScript type derived via `z.infer<>`; runtime parse on every localStorage read (prevents corrupt-state-blocks-app risk) — DONE 05-01
+- [x] **DATA-03**: Pure prompt-assembler module `frontend/src/lib/character/buildCharacterPrompt.ts` (following `lib/storyboardPrompt.ts` pattern) — deterministic token ordering, framing anchors (frontal face, both eyes, no occlusion, head-and-shoulders) preserved at fixed positions — DONE 05-01
+- [x] **DATA-04**: `toDataPatch(wizardState, originalData)` helper emits only changed keys for `patchNode`; cleared fields → `null` (delete sentinel); untouched fields omitted entirely; verified that submit does not wipe `mediaId` / `aiBrief` / other non-character data — DONE 05-01
+- [x] **DATA-05**: Stable English keys / user-typed English prose stored in `node.data` for every structured field — never translated display labels (locale-independent boards; assembler stays correct on any installed locale) — DONE 05-01
 
 ### Wizard UI
 
@@ -33,7 +33,7 @@ Each requirement maps to exactly one roadmap phase. Verification is manual / TS-
 
 ### Removal + Migration
 
-- [ ] **MIGRATE-01**: Convert-on-read migration in `loadInitialBoard` hydration path — `lib/character/migrate.ts` maps legacy `charCountry` → `charEthnicity` via the existing `CHARACTER_COUNTRIES[n].tag` mapping; legacy `charVibe` retained as-is until WIZARD ships, then mapped or dropped. No automatic PATCHes on startup.
+- [x] **MIGRATE-01**: Convert-on-read migration in `loadInitialBoard` hydration path — `lib/character/migrate.ts` maps legacy `charCountry` → `charEthnicity` via the existing `CHARACTER_COUNTRIES[n].tag` mapping; legacy `charVibe` retained as-is until WIZARD ships, then mapped or dropped. No automatic PATCHes on startup. — DONE 05-01
 - [ ] **MIGRATE-02**: `CHARACTER_GENDERS`, `CHARACTER_COUNTRIES`, `CHARACTER_VIBES`, `localizedCountryLabel`, `localizedVibeLabel` deleted from `frontend/src/constants/character.ts` only after every call site is updated (grep gate: zero results for those symbols outside the migration shim)
 - [ ] **MIGRATE-03**: `ResultViewer.tsx` reads pills from new structured fields with a temporary `charCountry` fallback shim; verified against an opened v1.0 board (pills render with correct localized labels) before the shim is removed
 - [ ] **MIGRATE-04**: A v1.0 board with old `charCountry: "vn"` / `charVibe: "clean"` nodes loads without console errors, the wizard opens with pre-filled fields, and generation dispatches the same shape of prompt as v1.0 (regression diff captured in a planning note)
@@ -95,11 +95,11 @@ Phase mapping populated by the roadmapper. All v1.1 requirements covered.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 5 | Pending |
-| DATA-02 | Phase 5 | Pending |
-| DATA-03 | Phase 5 | Pending |
-| DATA-04 | Phase 5 | Pending |
-| DATA-05 | Phase 5 | Pending |
+| DATA-01 | Phase 5 | Done (05-01, 68792b4) |
+| DATA-02 | Phase 5 | Done (05-01, 0a69182) |
+| DATA-03 | Phase 5 | Done (05-01, 0a69182) |
+| DATA-04 | Phase 5 | Done (05-01, 0a69182) |
+| DATA-05 | Phase 5 | Done (05-01, 0a69182) |
 | WIZARD-01 | Phase 6 | Pending |
 | WIZARD-02 | Phase 6 | Pending |
 | WIZARD-03 | Phase 6 | Pending |
@@ -110,7 +110,7 @@ Phase mapping populated by the roadmapper. All v1.1 requirements covered.
 | LIB-03 | Phase 6 | Pending |
 | LIB-04 | Phase 6 | Pending |
 | LIB-05 | Phase 6 | Pending |
-| MIGRATE-01 | Phase 5 | Pending |
+| MIGRATE-01 | Phase 5 | Done (05-01, 0a69182) |
 | MIGRATE-02 | Phase 7 | Pending |
 | MIGRATE-03 | Phase 7 | Pending |
 | MIGRATE-04 | Phase 7 | Pending |

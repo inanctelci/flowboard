@@ -19,7 +19,7 @@
 
 ### v1.1 — Character Creation Rework (Phases 5–7)
 
-- [ ] **Phase 5: Data Model + Migration Foundation** — Stable field schema, prompt assembler, convert-on-read migration for v1.0 boards
+- [x] **Phase 5: Data Model + Migration Foundation** — Stable field schema, prompt assembler, convert-on-read migration for v1.0 boards (COMPLETE 2026-06-17)
 - [ ] **Phase 6: Wizard UI + Preset Library** — Multi-step character wizard mounted in GenerationDialog; saveable named-preset library wired into the wizard
 - [ ] **Phase 7: Constants Removal + i18n Audit** — Delete legacy preset constants, update ResultViewer, finalize EN+TR key parity as release gate
 
@@ -41,7 +41,8 @@
   3. buildCharacterPrompt produces a deterministic prompt string with framing anchors preserved at fixed positions and no "undefined" or "null" tokens for any partial field combination
   4. Loading a v1.0 board with charCountry: "vn" / charVibe: "clean" nodes converts to charEthnicity on read without console errors and without writing any automatic PATCHes to the backend
   5. Submitting a wizard-like patch via patchNode leaves node.data.mediaId and node.data.aiBrief intact (shallow-merge contract verified manually)
-**Plans**: TBD
+**Plans**: 1 plan
+- [x] 05-01-PLAN.md — Land FlowboardNodeData char* extension, Zod schema, prompt assembler, delta-only DataPatch helper, idempotent charCountry→charEthnicity migration wired into both hydration sites (DONE 2026-06-17, commits 0a69182 + 68792b4)
 **UI hint**: no
 
 ### Phase 6: Wizard UI + Preset Library

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Character Creation Rework
-status: roadmapped
-last_updated: "2026-06-16T00:00:00.000Z"
-last_activity: 2026-06-16
+status: In Progress
+last_updated: "2026-06-17T00:00:00.000Z"
+last_activity: 2026-06-17 — Phase 5 Plan 1 complete (DATA-01..05, MIGRATE-01)
 progress:
   total_phases: 3
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
+  percent: 33
 ---
 
 # Project State — Flowboard
@@ -32,12 +32,12 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 
 ## Current Position
 
-Phase: Phase 5 (not yet started — roadmap complete, awaiting /gsd-plan-phase 5)
-Plan: —
-Status: Roadmapped
-Last activity: 2026-06-16 — v1.1 roadmap created
+Phase: Phase 5 — Data Model + Migration Foundation (COMPLETE)
+Plan: 05-01 — all 2 tasks done
+Status: In Progress (Phase 5 complete; Phase 6 next)
+Last activity: 2026-06-17 — Phase 5 Plan 1 executed (DATA-01..05, MIGRATE-01)
 
-**Progress bar:** [----------] 0% (0/3 phases)
+**Progress bar:** [###-------] 33% (1/3 phases)
 
 ---
 
@@ -92,6 +92,9 @@ Items carried over from v1.0 (see MILESTONES.md). These do not block v1.1.
 | Convert-on-read migration (charCountry → charEthnicity) — no startup PATCHes | Thundering herd of PATCHes on load creates a false "board modified" signal; lazy migration is the correct pattern |
 | Zod 4 added as the only new runtime dependency | Runtime parse of localStorage CharacterConfig blobs; prevents corrupt state from blocking the app |
 | 3 phases (coarse granularity) collapsing the research-recommended 5 | Phase 3 (preset store) merged into Phase 6 with wizard UI (store is unblocked after Phase 5; UI requires wizard shell); Phase 4 (constants removal) merged into Phase 7 with i18n audit (both are cleanup/verification work) |
+| toCharacterDataPatch chosen as export name (not toDataPatch) | Avoids naming ambiguity with any future generic DataPatch helpers in Phase 6+ |
+| charExtras excluded from FlowboardNodeData hydration in Phase 5 | Field is dialog-local in GenerationDialog today; Phase 6 WIZARD-03 owns persistence and hydration cast |
+| FRAMING_ANCHORS use full multi-clause strings from RESEARCH.md §3 | Verbatim copy from existing GenerationDialog.tsx ensures byte-identical v1.0/v1.1 output (A/B parity confirmed) |
 
 ### Blockers
 
@@ -108,7 +111,13 @@ To resume this project:
 3. Read `.planning/ROADMAP.md` for phase decomposition (Phases 5–7)
 4. Read `.planning/REQUIREMENTS.md` for v1.1 REQ-IDs with phase assignments
 5. Check this file for guardrails, decisions, and deferred items
-6. Next action: `/gsd-plan-phase 5`
+6. Next action: `/gsd-plan-phase 6` (Character Wizard UI — Phase 5 foundation is complete)
+
+### Performance Log
+
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 05-data-model-migration-foundation | 05-01 | ~7 min | 2/2 | 7 (4 new, 3 modified) |
 
 ### Files on disk
 
