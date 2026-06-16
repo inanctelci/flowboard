@@ -4,6 +4,7 @@ import { useBoardStore } from "../store/board";
 import { useChatStore } from "../store/chat";
 import { useGenerationStore } from "../store/generation";
 import { usePipelineStore } from "../store/pipeline";
+import { useCharacterPresetsStore } from "../store/characterPresets";
 
 export function Toaster() {
   const { t } = useTranslation();
@@ -15,9 +16,15 @@ export function Toaster() {
   const clearChatError = useChatStore((s) => s.clearError);
   const clearGenError = useGenerationStore((s) => s.clearError);
   const clearPipelineError = usePipelineStore((s) => s.clearError);
+  // characterPresets.error holds an i18n key path (locale-independent store);
+  // translate it here at render time (constraint D-20).
+  const presetsErrorKey = useCharacterPresetsStore((s) => s.error);
+  const clearPresetsError = useCharacterPresetsStore((s) => s.clearError);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const presetsError = presetsErrorKey ? t(presetsErrorKey as any) : null;
 
-  // Priority: chat > pipeline > generation > board
-  const error = chatError ?? pipelineError ?? genError ?? boardError;
+  // Priority: chat > pipeline > generation > board > characterPresets
+  const error = chatError ?? pipelineError ?? genError ?? boardError ?? presetsError;
   const clearError =
     chatError !== null
       ? clearChatError
@@ -25,7 +32,9 @@ export function Toaster() {
       ? clearPipelineError
       : genError !== null
       ? clearGenError
-      : clearBoardError;
+      : boardError !== null
+      ? clearBoardError
+      : clearPresetsError;
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

@@ -422,5 +422,9 @@
   "refs.rename_title": "Rename",
   "refs.confirm_delete_aria": "Confirm delete reference",
   "refs.confirm_delete_title": "Click again to confirm — auto-cancels in 3s",
-  "refs.confirm_question": "Confirm?"
+  "refs.confirm_question": "Confirm?",
+  "wizard.error.preset_cap": "Preset library is full (50 max). Delete a preset before saving a new one.",
+  "wizard.error.preset_load_corrupt": "One or more saved presets could not be loaded — data may be corrupt. Affected presets have been removed.",
+  "wizard.error.preset_name_empty": "Please enter a name for this preset.",
+  "wizard.error.preset_save_failed": "Could not save preset — storage may be full. Try deleting an existing preset."
 }

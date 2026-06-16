@@ -422,5 +422,9 @@
   "refs.rename_title": "Yeniden Adlandır",
   "refs.confirm_delete_aria": "Referansı silmeyi onayla",
   "refs.confirm_delete_title": "Onaylamak için tekrar tıklayın — 3 saniye sonra iptal edilir",
-  "refs.confirm_question": "Emin misin?"
+  "refs.confirm_question": "Emin misin?",
+  "wizard.error.preset_cap": "Ön ayar kitaplığı dolu (en fazla 50). Yeni bir ön ayar kaydetmek için önce bir tanesini silin.",
+  "wizard.error.preset_load_corrupt": "Kayıtlı ön ayarlardan biri veya birkaçı yüklenemedi — veri bozuk olabilir. Etkilenen ön ayarlar kaldırıldı.",
+  "wizard.error.preset_name_empty": "Bu ön ayar için lütfen bir ad girin.",
+  "wizard.error.preset_save_failed": "Ön ayar kaydedilemedi — depolama alanı dolu olabilir. Mevcut bir ön ayarı silmeyi deneyin."
 }
