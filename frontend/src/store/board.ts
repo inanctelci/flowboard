@@ -95,10 +95,13 @@ export interface FlowboardNodeData extends Record<string, unknown> {
   charEthnicity?: string;
   charAge?: string;
   charHair?: string;
+  charHairColor?: string;   // Phase 6 — "black", "blonde", option key or free-text
+  charHairStyle?: string;   // Phase 6 — "long-wavy", "braids", etc.
   charSkinTone?: string;
   charOutfit?: string;
   charExpression?: string;
   charLighting?: string;
+  charExtras?: string;      // Phase 6 — 200-char escape hatch (deferred from Phase 5 D-15)
   error?: string;
   // Storyboard layout. The Storyboard node is now a thin image-node
   // wrapper that generates a single composite using a locked prompt
@@ -299,10 +302,13 @@ export const useBoardStore = create<BoardState>((set, get) => ({
           charEthnicity: n.data["charEthnicity"] as string | undefined,
           charAge: n.data["charAge"] as string | undefined,
           charHair: n.data["charHair"] as string | undefined,
+          charHairColor: n.data["charHairColor"] as string | undefined,
+          charHairStyle: n.data["charHairStyle"] as string | undefined,
           charSkinTone: n.data["charSkinTone"] as string | undefined,
           charOutfit: n.data["charOutfit"] as string | undefined,
           charExpression: n.data["charExpression"] as string | undefined,
           charLighting: n.data["charLighting"] as string | undefined,
+          charExtras: n.data["charExtras"] as string | undefined,
           storyboardGrid: n.data["storyboardGrid"] as StoryboardGrid | undefined,
         }),
       }));
@@ -362,10 +368,13 @@ export const useBoardStore = create<BoardState>((set, get) => ({
           charEthnicity: n.data["charEthnicity"] as string | undefined,
           charAge: n.data["charAge"] as string | undefined,
           charHair: n.data["charHair"] as string | undefined,
+          charHairColor: n.data["charHairColor"] as string | undefined,
+          charHairStyle: n.data["charHairStyle"] as string | undefined,
           charSkinTone: n.data["charSkinTone"] as string | undefined,
           charOutfit: n.data["charOutfit"] as string | undefined,
           charExpression: n.data["charExpression"] as string | undefined,
           charLighting: n.data["charLighting"] as string | undefined,
+          charExtras: n.data["charExtras"] as string | undefined,
           storyboardGrid: n.data["storyboardGrid"] as StoryboardGrid | undefined,
         }),
       }));
