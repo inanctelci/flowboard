@@ -437,11 +437,14 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     if (boardId === null) return;
     try {
       const detail = await getBoard(boardId);
+      // Phase 5 INFO gap (D-17): refreshBoardState was missing migrateCharacterNodeData
+      // and all v1.1 char* fields. Fixed in Phase 6 — now identical in shape to
+      // loadInitialBoard and switchBoard.
       const nodes: FlowNode[] = detail.nodes.map((n) => ({
         id: String(n.id),
         type: n.type,
         position: { x: n.x, y: n.y },
-        data: {
+        data: migrateCharacterNodeData({
           type: n.type,
           shortId: n.short_id,
           title: (n.data["title"] as string | undefined) ?? TYPE_TITLE[n.type],
@@ -452,15 +455,26 @@ export const useBoardStore = create<BoardState>((set, get) => ({
           mediaIds: n.data["mediaIds"] as (string | null)[] | undefined,
           slotErrors: n.data["slotErrors"] as (string | null)[] | undefined,
           variantCount: n.data["variantCount"] as number | undefined,
+          aspectRatio: n.data["aspectRatio"] as string | undefined,
           aiBrief: n.data["aiBrief"] as string | undefined,
           imageModel: n.data["imageModel"] as string | undefined,
           videoQuality: n.data["videoQuality"] as string | undefined,
           charCountry: n.data["charCountry"] as string | undefined,
           charVibe: n.data["charVibe"] as string | undefined,
           charGender: n.data["charGender"] as string | undefined,
+          charEthnicity: n.data["charEthnicity"] as string | undefined,
+          charAge: n.data["charAge"] as string | undefined,
+          charHair: n.data["charHair"] as string | undefined,
+          charHairColor: n.data["charHairColor"] as string | undefined,
+          charHairStyle: n.data["charHairStyle"] as string | undefined,
+          charSkinTone: n.data["charSkinTone"] as string | undefined,
+          charOutfit: n.data["charOutfit"] as string | undefined,
+          charExpression: n.data["charExpression"] as string | undefined,
+          charLighting: n.data["charLighting"] as string | undefined,
+          charExtras: n.data["charExtras"] as string | undefined,
           storyboardGrid: n.data["storyboardGrid"] as StoryboardGrid | undefined,
           error: n.data["error"] as string | undefined,
-        },
+        }),
       }));
       const edges: Edge[] = detail.edges.map(edgeFromDto);
       set({ nodes, edges });
