@@ -91,39 +91,39 @@ Explicitly excluded for v1.1. Documented to prevent scope creep.
 
 ## Traceability
 
-Phase mapping populated by the roadmapper. All v1.1 requirements must be covered.
+Phase mapping populated by the roadmapper. All v1.1 requirements covered.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | TBD | Pending |
-| DATA-02 | TBD | Pending |
-| DATA-03 | TBD | Pending |
-| DATA-04 | TBD | Pending |
-| DATA-05 | TBD | Pending |
-| WIZARD-01 | TBD | Pending |
-| WIZARD-02 | TBD | Pending |
-| WIZARD-03 | TBD | Pending |
-| WIZARD-04 | TBD | Pending |
-| WIZARD-05 | TBD | Pending |
-| LIB-01 | TBD | Pending |
-| LIB-02 | TBD | Pending |
-| LIB-03 | TBD | Pending |
-| LIB-04 | TBD | Pending |
-| LIB-05 | TBD | Pending |
-| MIGRATE-01 | TBD | Pending |
-| MIGRATE-02 | TBD | Pending |
-| MIGRATE-03 | TBD | Pending |
-| MIGRATE-04 | TBD | Pending |
-| I18N-01 | TBD | Pending |
-| I18N-02 | TBD | Pending |
-| I18N-03 | TBD | Pending |
-| I18N-04 | TBD | Pending |
+| DATA-01 | Phase 5 | Pending |
+| DATA-02 | Phase 5 | Pending |
+| DATA-03 | Phase 5 | Pending |
+| DATA-04 | Phase 5 | Pending |
+| DATA-05 | Phase 5 | Pending |
+| WIZARD-01 | Phase 6 | Pending |
+| WIZARD-02 | Phase 6 | Pending |
+| WIZARD-03 | Phase 6 | Pending |
+| WIZARD-04 | Phase 6 | Pending |
+| WIZARD-05 | Phase 6 | Pending |
+| LIB-01 | Phase 6 | Pending |
+| LIB-02 | Phase 6 | Pending |
+| LIB-03 | Phase 6 | Pending |
+| LIB-04 | Phase 6 | Pending |
+| LIB-05 | Phase 6 | Pending |
+| MIGRATE-01 | Phase 5 | Pending |
+| MIGRATE-02 | Phase 7 | Pending |
+| MIGRATE-03 | Phase 7 | Pending |
+| MIGRATE-04 | Phase 7 | Pending |
+| I18N-01 | Phase 7 | Pending |
+| I18N-02 | Phase 7 | Pending |
+| I18N-03 | Phase 7 | Pending |
+| I18N-04 | Phase 7 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 23 total
-- Mapped to phases: 0 (roadmapper will fill)
-- Unmapped: 23 ⚠️ (resolved after `/gsd-new-milestone` runs the roadmapper)
+- Mapped to phases: 23
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-16*
-*Last updated: 2026-06-16 — initial v1.1 draft*
+*Last updated: 2026-06-16 — traceability filled by roadmapper (Phases 5–7)*
