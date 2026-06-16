@@ -1,471 +1,434 @@
-# Architecture Research: i18n Integration
+# Architecture Research
 
-**Domain:** React SPA internationalization — retrofit onto existing Vite + React 18 + Zustand frontend
-**Researched:** 2026-06-10
-**Confidence:** HIGH
-
----
-
-## Standard Architecture
-
-### System Overview
-
-```
-frontend/src/
-├── main.tsx                  ← i18n side-effect import here; provider wraps <App />
-├── App.tsx                   ← useEffect sets document.documentElement.lang
-├── i18n/
-│   ├── i18n.ts               ← i18next instance init (imported as side effect)
-│   ├── i18next.d.ts          ← TypeScript module augmentation (CustomTypeOptions)
-│   └── locales/
-│       ├── en.json           ← English catalog (source of truth for TS types)
-│       └── tr.json           ← Turkish catalog (must match en.json keys exactly)
-├── store/
-│   └── settings.ts           ← adds locale field + setLocale(); calls i18n.changeLanguage()
-└── components/
-    └── SettingsPanel.tsx     ← locale picker dropdown added here
-```
-
-**Data flow on locale change:**
-
-```
-User picks "Türkçe" in SettingsPanel
-    ↓
-useSettingsStore.setLocale("tr")
-    ↓  calls
-i18n.changeLanguage("tr")          ← i18next re-renders all useTranslation consumers
-    ↓  persists
-localStorage["flowboard.settings.v1"].locale = "tr"
-    ↓  fires
-i18n "languageChanged" event       ← App.tsx useEffect: sets document.documentElement.lang
-```
-
-### Component Responsibilities
-
-| Component | i18n Responsibility |
-|-----------|---------------------|
-| `frontend/src/main.tsx` | Imports `./i18n/i18n.ts` as side effect before `<App />`; wraps `<App />` in `<I18nextProvider>` |
-| `frontend/src/i18n/i18n.ts` | Creates and exports the i18next instance; registers `LanguageDetector` + `initReactI18next`; configures detection order |
-| `frontend/src/i18n/i18next.d.ts` | Augments i18next `CustomTypeOptions` so `t("key")` is type-checked against `en.json` |
-| `frontend/src/i18n/locales/en.json` | Flat English catalog — source of truth for TS key types |
-| `frontend/src/i18n/locales/tr.json` | Flat Turkish catalog — must have identical keys to `en.json` |
-| `frontend/src/store/settings.ts` | Owns `locale: string` state + `setLocale()`; calls `i18n.changeLanguage()` inside the action; persists to `flowboard.settings.v1` in localStorage |
-| `frontend/src/App.tsx` | Runs `useEffect` to sync `document.documentElement.lang` when `i18n.resolvedLanguage` changes |
-| `frontend/src/components/SettingsPanel.tsx` | Renders locale selector; calls `useSettingsStore(s => s.setLocale)` |
-| All leaf components | Call `const { t } = useTranslation()` at component top; render `{t("key")}` |
-| `frontend/src/api/client.ts` | No i18n changes — backend stays English-only by project decision |
+**Domain:** Character wizard integration into an existing canvas-driven AI generation pipeline
+**Researched:** 2026-06-16
+**Confidence:** HIGH — based on direct code analysis of every affected file
 
 ---
 
-## Recommended Project Structure
+## Questions Answered
 
-```
-frontend/src/i18n/
-├── i18n.ts              # i18next instance — imported once in main.tsx
-├── i18next.d.ts         # TypeScript CustomTypeOptions augmentation
-└── locales/
-    ├── en.json          # English strings (flat, no nesting)
-    └── tr.json          # Turkish strings (identical key shape)
-```
+### 1. WHERE does the wizard mount?
 
-### Structure Rationale
+**Decision: replace the `isCharacter` block inside `GenerationDialog` with the multi-step wizard; do NOT create a second modal.**
 
-- **`frontend/src/i18n/` (not `src/locales/` at root):** Groups the instance config, type declarations, and locale files together. A contributor adding a new locale (e.g. `de.json`) drops it in one obvious directory and adds one line to `i18n.ts`. No other files change.
-- **Flat JSON, no namespaces:** Flowboard has fewer than 300 user-visible strings across the entire frontend. Namespace splitting exists to speed up initial load via selective loading — that benefit does not apply when all locales are bundled statically. Splitting into `canvas.json`, `settings.json`, `dialogs.json` adds `useTranslation('canvas')` namespace arguments to every component, adds `ns` declarations to `i18n.ts`, and adds friction for OSS contributors who need to determine which namespace a new string belongs to. A single flat file wins on maintainability at this scale.
-- **`en.json` is the TS type source:** The TypeScript augmentation points at `typeof en` — English is canonical. If a key exists in `tr.json` but not `en.json`, it is dead weight. If a key exists in `en.json` but not `tr.json`, i18next falls back to English silently — acceptable during incremental migration.
-- **`i18next.d.ts` co-located with `i18n.ts`:** Not in a root `@types/` directory, because this declaration is specific to this i18next instance (not a global ambient type). Keeping it alongside the instance config makes the relationship obvious.
+`GenerationDialog.tsx` already owns the character path as a full-screen dialog opened by `openGenerationDialog()`. The relevant render path is `rfId !== null && isCharacter → show character UI`. Today that block is ~70 lines of inline JSX (gender chips, country chips, vibe chips, extras textarea). The wizard replaces that inline block with a `<CharacterWizard>` component mounted inside the same dialog wrapper — the backdrop, header, footer, and focus trap all stay.
+
+Why not a separate modal:
+- Every existing pattern in the codebase uses one modal type: the single `gen-dialog` with conditional branches per `targetType` (image, video, character, storyboard, prompt). A second modal layer would need its own backdrop, focus-trap, and ESC handler — duplicating ~80 lines of infrastructure.
+- The wizard needs to call `dispatchGeneration()` and `closeGenerationDialog()` on completion, which are both on the `generationStore`. Nesting a second modal adds indirection with no benefit.
+- When the user clicks Generate on a character node (in `CharacterBody` → `openGenerate()` → `openGenerationDialog(rfId, prompt)`), the store already sets `openDialog.rfId`. Anything that re-uses that existing trigger path gets the dialog open for free.
+
+Why not swap into `NodeCard`:
+- `NodeCard` renders on the infinite canvas. Character generation requires a prompt-builder with up to 5 steps plus a preset library. Mounting that on the card violates the card's single-responsibility: it renders thumbnails and routes to dialogs, never performs multi-step composition itself. This is the same reason `GenerationDialog` exists for image/video.
+
+**Mount point: replace `{isCharacter && (...)}` block in `GenerationDialog.tsx` with `<CharacterWizard rfId={rfId} onDone={closeGenerationDialog} />`.**
+
+The `CharacterWizard` receives `rfId` (to PATCH the node on dispatch) and `onDone` (to close the dialog). It calls `useGenerationStore.getState().dispatchGeneration()` itself on the final step — same as the existing `isCharacter` branch does today.
 
 ---
 
-## Architectural Patterns
+### 2. WHICH Zustand store owns wizard state?
 
-### Pattern 1: Module-Level i18next Init (Side-Effect Import)
+**Decision: local component state inside `CharacterWizard`, NOT a new store slice, NOT an extension of `generation.ts`.**
 
-**What:** i18next is initialized as a module-level side effect in `i18n.ts`, which is imported once at the top of `main.tsx` before `<App />` renders. The instance is synchronous for bundled resources — no `await`, no `Suspense` needed.
+The wizard state is transient: it lives only while the dialog is open. When the user closes the dialog (ESC or cancel), none of the wizard's in-progress selections should be remembered — this matches the existing `GenerationDialog` behaviour (`useEffect` on `rfId` resets `charGender/charCountry/charVibe/charExtras` to null each time). A Zustand slice for ephemeral per-session input is overkill and creates cleanup bugs (forgetting to clear on close is the classic anti-pattern in this codebase).
 
-**When to use:** Always, for this app. Avoids the StrictMode double-render problem that affects approaches that call `i18n.init()` inside a `useEffect` or component body. Module-level init runs once, regardless of how many times React re-renders in development `StrictMode`.
+The library of saved presets is a different concern — it needs to survive across dialog sessions and board switches, so it DOES need a store (see Question 5 for the decision between localStorage and Reference rows).
 
-**Trade-offs:** The i18next instance is a module singleton — correct for a single-user SPA, wrong for SSR (not applicable here).
+`generation.ts` already owns `openDialog`, `dispatchGeneration`, and `paygateTier`. Adding wizard step state there would make the slice aware of character-specific semantics it currently doesn't care about. The wizard calling `useGenerationStore.getState().dispatchGeneration()` at the end is the correct boundary: generation store is the sink, not the container.
+
+**Wizard transient state: `useState` inside `CharacterWizard`. Saved-preset library: a dedicated `characterPresets.ts` Zustand slice (see below).**
+
+---
+
+### 3. HOW are structured fields persisted to `node.data`?
+
+**Decision: flat keys at the top level of `node.data`, each prefixed with `char`. NOT a nested `character: { ... }` object.**
+
+The PATCH contract at `routes/nodes.py:76-121` is a **one-level shallow merge**. From the docstring: "if a key's value is itself a dict, the new dict REPLACES the old one (no recursive merge)". If structured fields are stored as a nested object:
 
 ```typescript
-// frontend/src/i18n/i18n.ts
-import i18n from "i18next";
-import { initReactI18next } from "react-i18next";
-import LanguageDetector from "i18next-browser-languagedetector";
-import en from "./locales/en.json";
-import tr from "./locales/tr.json";
-
-i18n
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    resources: {
-      en: { translation: en },
-      tr: { translation: tr },
-    },
-    fallbackLng: "en",
-    supportedLngs: ["en", "tr"],
-    interpolation: { escapeValue: false }, // React already escapes
-    detection: {
-      order: ["localStorage", "navigator"],
-      caches: ["localStorage"],
-      lookupLocalStorage: "flowboard.settings.v1.locale",
-    },
-  });
-
-export default i18n;
+// WRONG — nested object
+patchNode(dbId, { data: { character: { gender: "female", hair: "curly" } } })
+// → replaces the entire `character` key, losing any sub-keys the caller omitted
 ```
 
-```typescript
-// frontend/src/main.tsx  (add these two lines)
-import "./i18n/i18n";   // side-effect: init before render
-import { I18nextProvider } from "react-i18next";
-import i18n from "./i18n/i18n";
+Flat keys are safe with shallow-merge:
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <I18nextProvider i18n={i18n}>
-      <App />
-    </I18nextProvider>
-  </React.StrictMode>,
-);
+```typescript
+// CORRECT — flat keys merge safely
+patchNode(dbId, { data: { charGender: "female", charHair: "curly" } })
+// → only charGender and charHair are touched; all other node.data keys survive
 ```
 
-**StrictMode note:** `I18nextProvider` and `initReactI18next` are safe with React 18 StrictMode. The init runs at module load time (not in render), so the StrictMode double-invocation of effects does not cause a double-init. The provider is a pure context setter — idempotent across double renders.
+The existing code already uses this pattern: `charCountry`, `charVibe`, `charGender` are all flat on `FlowboardNodeData` (board.ts:84-88). The v1.1 wizard extends this set with additional flat keys rather than grouping them.
 
-### Pattern 2: Zustand as Locale Bridge, i18next as Source of Truth
-
-**What:** Locale state lives in two places with a clear ownership rule: i18next owns the runtime locale (what components render), the settings Zustand store mirrors the locale value for (a) displaying the selected language in `SettingsPanel` and (b) persisting it in the existing `flowboard.settings.v1` localStorage key.
-
-**When to use:** Always. The alternative — Zustand as sole owner, with `useTranslation` reading from Zustand — would require wiring every component to both stores. The alternative — i18next as sole owner with no Zustand involvement — means the locale is persisted under i18next's own `i18nextLng` key, separate from the existing settings persistence, making Settings panel integration awkward.
-
-**Ownership rule:** `setLocale()` in the settings store is the single call site for locale changes. It updates Zustand state, calls `i18n.changeLanguage()`, and persists. Nothing else calls `i18n.changeLanguage()` directly.
-
-**Trade-offs:** Two sources means they can theoretically diverge (e.g. if `i18n.changeLanguage()` is called directly). Avoid this by never calling it outside `setLocale()` — enforced by convention, not a runtime guard.
+**New flat keys to add to `FlowboardNodeData`:**
 
 ```typescript
-// frontend/src/store/settings.ts  (additions to existing store)
-import i18n from "../i18n/i18n";
+// Character identity
+charGender?: string;          // already exists
+charEthnicity?: string;       // replaces charCountry (see migration section)
+charAge?: string;             // e.g. "young adult", "middle-aged", "elder"
 
-type Locale = "en" | "tr";
+// Appearance
+charHair?: string;            // e.g. "long wavy black hair"
+charSkinTone?: string;        // e.g. "fair", "tan", "deep"
 
-interface SettingsState {
-  // ... existing fields
-  locale: Locale;
-  setLocale(l: Locale): void;
+// Styling / vibe
+charVibe?: string;            // already exists (key from CHARACTER_VIBES)
+charOutfit?: string;          // free-text or enum key
+
+// Expression / lighting
+charExpression?: string;      // e.g. "confident smile", "neutral"
+charLighting?: string;        // e.g. "soft daylight", "studio"
+
+// Extras
+charExtras?: string;          // already exists (free-text)
+
+// Deprecated (keep for read-only backward compat, strip on save)
+charCountry?: string;         // legacy — map to charEthnicity on read
+```
+
+Each PATCH on dispatch sends only the keys that have values — the `Object.keys(charStamp).filter(k => charStamp[k] != null)` pattern from the existing `isCharacter` branch in `GenerationDialog.tsx:646-651`.
+
+The `null`-sentinel behaviour (PATCH with `{ charCountry: null }` deletes the key) means migration can strip old keys by patching them to null after writing the new equivalents.
+
+---
+
+### 4. HOW is the prompt assembled at dispatch?
+
+**Decision: extract `buildCharacterPrompt` into `frontend/src/lib/character/buildCharacterPrompt.ts`; keep framing anchors there too.**
+
+Today `buildCharacterPrompt` is a module-scope function in `GenerationDialog.tsx` (lines 45-74). It takes `(gender, country, vibe, extras)` and returns a string. The wizard replaces the country+vibe model with structured fields (ethnicity, hair, outfit, expression, lighting), so the function signature changes. When a function's signature and responsibility both change, it's the right time to move it to a dedicated module.
+
+The existing lib pattern is `frontend/src/lib/storyboardPrompt.ts` — a pure function module for prompt assembly that is imported by `GenerationDialog.tsx`. `buildCharacterPrompt` should follow the same pattern.
+
+**New module:** `frontend/src/lib/character/buildCharacterPrompt.ts`
+
+```typescript
+// Pure function — no imports from stores or React
+export interface CharacterConfig {
+  gender?: string;
+  ethnicity?: string;
+  age?: string;
+  hair?: string;
+  skinTone?: string;
+  vibe?: string;
+  outfit?: string;
+  expression?: string;
+  lighting?: string;
+  extras?: string;
 }
 
-// Inside loadPersisted() — add locale field:
-// locale?: Locale;
+export function buildCharacterPrompt(config: CharacterConfig): string {
+  // Subject line assembly
+  const descriptors = [config.ethnicity, config.age, config.gender].filter(Boolean);
+  const subject = descriptors.join(" ") || "person";
 
-// Inside create():
-locale: persisted.locale ?? detectInitialLocale(),
-setLocale(l) {
-  set({ locale: l });
-  void i18n.changeLanguage(l);
-  persist({ ...get(), locale: l }); // existing persist() call pattern
-},
-```
+  // Vibe tokens from CHARACTER_VIBES lookup (or free-text if vibe not found)
+  const vibeTokens = resolveVibeTokens(config.vibe);
 
-```typescript
-// helper — reads i18next's resolved language at store init time
-// so both are in sync on cold start
-function detectInitialLocale(): Locale {
-  const supported: Locale[] = ["en", "tr"];
-  const detected = i18n.resolvedLanguage ?? navigator.language.split("-")[0];
-  return supported.includes(detected as Locale) ? (detected as Locale) : "en";
+  // Framing anchors — front-loaded per the existing comment in GenerationDialog.tsx:
+  // "diffusion models weight earlier tokens more — vibe tokens like 'editorial /
+  // magazine beauty' otherwise pull toward fashion 3/4 turns"
+  return [
+    `Studio portrait headshot of a ${subject} character`,
+    "subject directly faces the camera, head perfectly straight with zero tilt and zero turn",
+    "shoulders square to camera, axially symmetric pose, nose centered, both eyes equally visible at the same height",
+    config.hair || null,
+    config.skinTone ? `${config.skinTone} skin` : null,
+    config.outfit || null,
+    ...vibeTokens,
+    config.expression || null,
+    config.lighting || null,
+    config.extras?.trim() || null,
+    "head and shoulders framing, centered composition, sharp focus on face",
+    "strictly front-on orientation, no head tilt, no head turn, no profile angle, no three-quarter view, no over-the-shoulder pose",
+    "no glasses, no hat, no mask, no occlusion, nothing covering the face",
+    "photorealistic, ultra-detailed, consistent character reference",
+  ]
+    .filter(Boolean)
+    .join(", ");
 }
 ```
 
-**Why not use i18next-browser-languagedetector's own `lookupLocalStorage` as the sole persistence mechanism:** The existing settings store already persists to `flowboard.settings.v1`. Using i18next's own key (`i18nextLng`) would create a second localStorage entry outside the settings blob, making it invisible to anyone reading the settings key. Configuring `lookupLocalStorage: "flowboard.settings.v1.locale"` tells the detector to read from the same logical namespace but a dedicated key — acceptable. Alternatively, the detector is configured with `order: ["localStorage", "navigator"]` so on cold start it reads the previously-persisted value from the settings store's own key; the Zustand store then mirrors it. Pick one and be consistent: the recommended approach is to use `lookupLocalStorage` pointing at a dedicated key (`flowboard.i18n.locale`) and have `setLocale()` write to both the settings blob and this key.
+The framing anchors (frontal face, both eyes, head-and-shoulders, no occlusion) belong in this file alongside the rest of the prompt assembly. They are generation constraints, not UI labels, and should never appear in locale JSON files.
 
-### Pattern 3: useTranslation Hook as the Default; Trans Component for Inline Markup Only
+`GenerationDialog.tsx` replaces its local `buildCharacterPrompt` call with an import from the lib module.
 
-**What:** Every component calls `const { t } = useTranslation()` at the top level. `t("key")` returns the translated string. The `Trans` component is used exclusively when a translation string embeds JSX (bold text, links, `<code>` tags) — roughly 2-3 occurrences in the entire Flowboard frontend.
+---
 
-**When to use:** `t()` for 95%+ of cases. `Trans` only when the string must contain rendered React elements, not just string interpolation. `Trans` is verbose and translation-file syntax for embedded elements is non-obvious for OSS contributors — minimize its use.
+### 5. DECISION: localStorage Zustand slice vs Reference table for saved presets
 
-```tsx
-// Standard — use for every plain string
-const { t } = useTranslation();
-return <button>{t("generate.submit")}</button>;
+**Decision: localStorage-backed Zustand slice (`characterPresets.ts`).**
 
-// Interpolation — still uses t(), not Trans
-return <div>{t("node.variantCount", { count: variants.length })}</div>;
+This is the only true decision point where both paths are architecturally viable, so the comparison is laid out explicitly.
 
-// Trans — only for embedded JSX elements
-return (
-  <Trans i18nKey="settings.communityLink">
-    Join the <a href={COMMUNITY_URL}>community</a>
-  </Trans>
-);
+#### Trade-off table
+
+| Criterion | localStorage Zustand slice | Reference rows (ai_brief piggyback) |
+|-----------|---------------------------|--------------------------------------|
+| **Cross-device sync expectation** | N/A — app is local-only single-user. Both are equally bad (neither syncs). | N/A — same. |
+| **Discoverability with existing ReferencesPanel** | Presets are NOT in the References panel. They live in a separate "Presets" section inside the wizard. This is better: presets are configuration, not media. References are media. Conflating them pollutes the References panel with non-draggable non-media items. | Presets appear in the References panel alongside character images. Users would see config items mixed with media thumbnails. The panel's thumbnail-first UX breaks because presets have no mediaId. The `kind=character` filter already shows saved character *images*, not character *configurations* — these are different things. |
+| **Round-trip safety** | Native. localStorage stores the `CharacterConfig` object as JSON. No encoding/decoding layer; TypeScript types are preserved across serialization. Corrupt entry can be caught and dropped at load time. | Config must be serialized into `ai_brief: string` (max length governed by frontend — no DB column constraint). A read-back requires `JSON.parse(ai_brief)` with a try/catch. The `ai_brief` field is also populated by the LLM vision service — if a user saves a character image AND the vision service later overwrites `ai_brief`, the config is silently destroyed. The PATCH merge contract (ai_brief is a single string scalar, not a dict) means a vision update replaces the whole field. |
+| **Future cleanup if backend changes later allowed** | Zero migration burden. Delete the localStorage key and the Zustand slice; replace with a backend-backed store. No backend rows to clean up. The `character_presets` localStorage key is namespaced (`flowboard.character.presets.v1`) so future migrations can increment the version suffix. | Migration requires DELETE + re-create of Reference rows, or a schema change to add a `config` JSON column to Reference. Either way is a backend-touching migration that this milestone explicitly excludes. |
+| **Offline / persistence guarantee** | localStorage survives page reload, browser restart. Cleared by the user manually (DevTools) or by OS clearing site data. Acceptable for a local-only desktop app. | SQLite persistence — survives everything. But the same backup story applies; neither has a backup workflow. |
+| **Implementation complexity** | 1 new Zustand slice (~80 lines), 1 localStorage key, 0 backend changes. Pattern identical to `references.ts`'s `panelOpen` persistence. | 0 new files, but ~50 lines of encoding/decoding logic in the wizard + risk of silent overwrite from vision service. |
+| **Conclusion** | **RECOMMENDED** | Not recommended — round-trip unsafety and polluted References panel are both real costs. |
+
+**The `characterPresets.ts` Zustand slice:**
+
+```typescript
+// frontend/src/store/characterPresets.ts
+
+export interface CharacterPreset {
+  id: string;          // nanoid() or crypto.randomUUID()
+  name: string;        // user-visible label
+  config: CharacterConfig;
+  createdAt: string;   // ISO
+}
+
+interface CharacterPresetsState {
+  presets: CharacterPreset[];
+  save(name: string, config: CharacterConfig): void;
+  remove(id: string): void;
+  rename(id: string, name: string): void;
+  clearError(): void;
+  error: string | null;
+}
 ```
+
+Persisted to `flowboard.character.presets.v1` localStorage key as a JSON array. Load on slice init (same pattern as `loadPersistedPanelOpen()` in `references.ts:44-53`). Max cap of 50 presets (configurable constant) prevents unbounded localStorage growth.
+
+---
+
+### 6. BUILD ORDER
+
+The dependency graph forces this order:
+
+**Phase 1 — Data model + migration (foundation)**
+- Add new flat keys (`charEthnicity`, `charAge`, `charHair`, `charSkinTone`, `charOutfit`, `charExpression`, `charLighting`) to `FlowboardNodeData` in `store/board.ts`
+- Add `charExtras` to `FlowboardNodeData` if not already there (it's dialog-local today, never persisted — now it should be)
+- Write `migrateCharacterNodeData(data: FlowboardNodeData): FlowboardNodeData` in `frontend/src/lib/character/migrate.ts`: maps `charCountry → charEthnicity` (using the existing `CHARACTER_COUNTRIES` tag field as the ethnicity string, e.g. `"vn" → "Vietnamese"`), then returns the data with `charCountry` stripped
+- Add migration call in `store/board.ts` wherever nodes are hydrated from the backend (`loadInitialBoard` and `getBoard` response mapping) — call `migrateCharacterNodeData(node.data)` per node. This is read-time conversion; no backend writes needed
+- Move (and expand) `buildCharacterPrompt` into `frontend/src/lib/character/buildCharacterPrompt.ts`
+- Create `frontend/src/store/characterPresets.ts` with localStorage persistence
+
+Why first: every subsequent phase depends on the data shape being stable.
+
+**Phase 2 — Wizard UI (replace the inline character builder in GenerationDialog)**
+- Create `frontend/src/components/character/CharacterWizard.tsx` — multi-step component with steps: Identity (gender, ethnicity, age) → Appearance (hair, skin tone) → Styling (vibe picker, outfit) → Expression & Lighting → Review
+- The Review step renders a preview prompt string using `buildCharacterPrompt` so the user sees what will be dispatched
+- Wire the wizard into `GenerationDialog.tsx`: replace the `{isCharacter && (...)}` inline block with `<CharacterWizard rfId={rfId} onDone={closeGenerationDialog} />`
+- The wizard on Submit: calls `patchNode` with the structured fields, then calls `dispatchGeneration` — same as the existing `isCharacter` branch
+- The wizard on Cancel: calls `closeGenerationDialog` without patching
+
+**Phase 3 — Library save/list (preset management)**
+- Extend the CharacterWizard Review step with a "Save as preset" flow (name input → save button → adds to `characterPresets` store)
+- Add a "Load preset" step before Identity that lists saved presets; selecting one populates the wizard fields and jumps to Review
+- The preset UI lives inside the wizard, not in `ReferencesPanel` (presets are config, not media)
+
+**Phase 4 — Removal + strip migration**
+- Delete `CHARACTER_COUNTRIES` and `CHARACTER_VIBES` from `constants/character.ts` (keep `CHARACTER_GENDERS` if still needed, or migrate gender to a string enum in the lib module)
+- Delete all imports of `CHARACTER_COUNTRIES`, `CHARACTER_VIBES`, `CountryKey`, `VibeKey` from `GenerationDialog.tsx` and any other consumers
+- The `countryLabel`, `vibeLabel`, `localizedCountryLabel`, `localizedVibeLabel`, `localizedVibeLabel` functions in `constants/character.ts` can be deleted — the new structured fields use free-text or a new enum set defined in `lib/character/`
+- The `ResultViewer` component (not yet read but referenced in CLAUDE.md) renders country/vibe pills under the model badge using these helpers — update it to render the new structured fields instead
+- Verify `check-i18n-parity.mjs` stays green after removing old character i18n keys
+
+**Phase 5 — i18n coverage**
+- Add EN + TR strings for every new wizard surface: step titles, field labels, placeholder text, preset save/load UI
+- Remove stale i18n keys from v1.0's `character.*` namespace that no longer have references (or repurpose them where labels overlap)
+- Run `scripts/check-i18n-parity.mjs` — must stay green throughout
+
+---
+
+### Migration concern: existing `charCountry` + `charVibe` nodes
+
+Boards with nodes carrying `charCountry` and `charVibe` must not produce console errors or broken UI after v1.1.
+
+**Safe path: convert-on-read, strip-on-save.**
+
+1. `migrateCharacterNodeData()` in `frontend/src/lib/character/migrate.ts` runs on every node hydrated from the backend. It maps:
+   - `charCountry: "vn"` → `charEthnicity: "Vietnamese"` (using `CHARACTER_COUNTRIES.find(c => c.key === charCountry)?.tag`)
+   - `charVibe: "clean"` → `charVibe: "clean"` (unchanged — vibe keys are stable, even if the preset expand later)
+   - Then deletes `charCountry` from the in-memory data object
+
+2. The conversion is NOT written back to the backend at load time (no PATCH on hydration). It's only written back when the user next saves a generation or edits the node. This avoids a mass-write on first load of any old board.
+
+3. The `ResultViewer` reading `data.charCountry` to render the "Country" pill must be updated to read `data.charEthnicity` instead. Until Phase 4 removes the old constants, the viewer can support both: `data.charEthnicity ?? countryLabelLookup(data.charCountry)`.
+
+4. Old boards with `charVibe` continue to work because the wizard's Styling step includes a vibe picker that maps onto the same `VibeKey` enum. The `buildCharacterPrompt` function in the lib module handles a `vibe` string the same way the existing function handles `VibeKey`.
+
+**There is no one-time strip migration needed** because the convert-on-read strategy means every resaved node naturally moves to the new schema over time, and the old schema is still readable until it's replaced.
+
+---
+
+## Component Boundaries
+
+### New components / files
+
+| File | Type | Responsibility |
+|------|------|----------------|
+| `frontend/src/lib/character/buildCharacterPrompt.ts` | Pure function module | Assemble the generation prompt from `CharacterConfig`; contains framing anchors |
+| `frontend/src/lib/character/migrate.ts` | Pure function module | `migrateCharacterNodeData()` — charCountry→charEthnicity, strip deprecated keys |
+| `frontend/src/store/characterPresets.ts` | Zustand slice | Saved named presets, localStorage-backed, zero backend dependency |
+| `frontend/src/components/character/CharacterWizard.tsx` | React component | Multi-step wizard; receives `rfId` + `onDone`; owns transient step state; calls `dispatchGeneration` on submit |
+| `frontend/src/components/character/PresetList.tsx` | React component | Render + select saved presets from `characterPresets` store; used in wizard Step 0 |
+
+### Modified files
+
+| File | Change |
+|------|--------|
+| `frontend/src/components/GenerationDialog.tsx` | Replace `{isCharacter && (...)}` inline block with `<CharacterWizard rfId={rfId} onDone={closeGenerationDialog} />`; remove imports of `CHARACTER_COUNTRIES`, `CHARACTER_VIBES`, `CountryKey`, `VibeKey`; remove local `buildCharacterPrompt` definition |
+| `frontend/src/store/board.ts` — `FlowboardNodeData` | Add new flat char* keys; call `migrateCharacterNodeData` in the board hydration path |
+| `frontend/src/constants/character.ts` | Phase 4: delete `CHARACTER_COUNTRIES`, `CHARACTER_VIBES`; keep or migrate `CHARACTER_GENDERS` and the `localizedGenderLabel` helper |
+| `frontend/src/components/ResultViewer.tsx` | Update country/vibe pill rendering from `charCountry/charVibe` lookups to `charEthnicity/charVibe` from new schema |
+| `frontend/src/i18n/locales/en.json` + `tr.json` | Add wizard strings; remove stale character.country.* and character.vibe.* keys that are no longer referenced |
+
+### Unchanged files (confirmed no changes needed)
+
+| File | Reason |
+|------|--------|
+| `agent/flowboard/routes/nodes.py` | Shallow-merge PATCH handles any flat key without schema changes |
+| `agent/flowboard/db/models.py` | `Node.data` is a free-form JSON column — no migration needed |
+| `frontend/src/store/generation.ts` | `dispatchGeneration()` is called by the wizard unchanged — no new params needed (the prompt is already a string by then) |
+| `frontend/src/store/references.ts` | Presets are NOT stored in References — separate slice |
+| `frontend/src/canvas/NodeCard.tsx` — `CharacterBody` | The "Upload / Generate" empty state and the avatar filled state are unchanged; only the dialog behind "Generate" changes |
 
 ---
 
 ## Data Flow
 
-### Locale Change Flow
+### Character generation (v1.1)
 
 ```
-SettingsPanel locale dropdown → onChange
+User clicks Generate on a character node
     ↓
-useSettingsStore.setLocale("tr")
-    ↓ (1) Zustand set({ locale: "tr" })        — SettingsPanel re-renders with new value
-    ↓ (2) i18n.changeLanguage("tr")            — all useTranslation() consumers re-render
-    ↓ (3) persist({ ..., locale: "tr" })       — survives reload via localStorage
-    ↓ (4) i18n fires "languageChanged" event
+NodeCard.CharacterBody.openGenerate()
     ↓
-App.tsx useEffect (dep: i18n.resolvedLanguage)
+useGenerationStore.openGenerationDialog(rfId, "")
     ↓
-document.documentElement.lang = "tr"           — screen readers, CSS :lang(), SEO
+GenerationDialog renders → isCharacter → <CharacterWizard rfId={rfId} onDone={close} />
+    ↓
+CharacterWizard: user steps through Identity → Appearance → Styling → Expression → Review
+    (transient state: useState inside CharacterWizard)
+    ↓
+CharacterWizard.handleSubmit():
+  1. buildCharacterPrompt(config) → promptString
+  2. useBoardStore.getState().updateNodeData(rfId, charFields)
+  3. patchNode(dbId, { data: charFields })     ← flat keys, shallow-merge safe
+  4. useGenerationStore.getState().dispatchGeneration(rfId, { prompt, aspectRatio })
+  5. onDone()  [= closeGenerationDialog()]
+    ↓
+generation.ts poll loop → node.data update on done
 ```
 
-### Cold Start (Returning User) Flow
+### Preset save/load
 
 ```
-Browser loads page
+User on Review step → "Save as preset" → enters name → PresetList.save()
     ↓
-main.tsx imports ./i18n/i18n.ts (module load)
+characterPresets.save(name, config)
     ↓
-i18n.init() runs synchronously
-LanguageDetector checks: localStorage["flowboard.i18n.locale"] = "tr"
-i18n starts in "tr"
+localStorage.setItem("flowboard.character.presets.v1", JSON.stringify([...presets]))
+
+User opens wizard → Step 0 "Load preset" → <PresetList> renders saved presets
     ↓
-settings store init: loadPersisted() reads locale: "tr" from flowboard.settings.v1
-detectInitialLocale() returns "tr" (matches i18n.resolvedLanguage)
-Zustand locale = "tr"
-    ↓
-<App /> renders; all t() calls return Turkish strings immediately
-No flicker — no async load, no Suspense needed
+User selects preset → wizard fields populated from preset.config → skip to Review step
 ```
 
-### Cold Start (New User, Browser Language = Turkish) Flow
+### Legacy node hydration (migration)
 
 ```
-i18n.init() → LanguageDetector checks localStorage (miss) → checks navigator.language
-navigator.language = "tr-TR" → LanguageDetector resolves "tr" → i18n starts in "tr"
-detectInitialLocale() reads i18n.resolvedLanguage = "tr"
-Zustand locale = "tr"
-setLocale("tr") called once from store init to persist the detected locale
+board.ts: loadInitialBoard() → GET /api/boards/{id}
+    ↓
+nodes from backend → map(node => ({
+  ...node,
+  data: migrateCharacterNodeData(node.data)  // charCountry → charEthnicity
+}))
+    ↓
+In-memory store has migrated data; backend row unchanged until next PATCH
 ```
 
 ---
 
-## Key File Specifications
+## Anti-Patterns to Avoid
 
-### `frontend/src/i18n/i18n.ts`
-Single i18next instance. Registers three plugins in order: `LanguageDetector`, `initReactI18next`. Calls `.init()` synchronously with bundled resources. Exports the instance for use in `main.tsx` and `store/settings.ts`.
+### Anti-Pattern 1: Nesting character config under a single `character` key in `node.data`
 
-### `frontend/src/i18n/i18next.d.ts`
-Module augmentation only. No runtime code.
+**What people do:** Store `node.data.character = { gender: "female", ethnicity: "Vietnamese", hair: "...", ... }` to group the fields logically.
 
-```typescript
-import "i18next";
-import type en from "./locales/en.json";
+**Why it's wrong:** The PATCH route does a one-level shallow merge. A PATCH of `{ data: { character: { hair: "straight" } } }` replaces the entire `character` object, losing `gender`, `ethnicity`, and every other field the caller didn't include. The docstring in `routes/nodes.py` explicitly documents this: "if a key's value is itself a dict, the new dict REPLACES the old one". This is the documented anti-pattern in CLAUDE.md.
 
-declare module "i18next" {
-  interface CustomTypeOptions {
-    defaultNS: "translation";
-    resources: {
-      translation: typeof en;
-    };
-  }
-}
-```
+**Do this instead:** Flat `char*` keys at the top level of `node.data`. Each PATCH only needs to include the keys that changed.
 
-`t("nonexistent.key")` becomes a TypeScript error. `t("generate.submit")` autocompletes. This requires TypeScript 5+ strict mode — already satisfied (the project is on TS 5.6).
+### Anti-Pattern 2: Storing preset config inside Reference rows via `ai_brief`
 
-### `frontend/src/i18n/locales/en.json`
-Flat object. Top-level keys are UI area prefixes (not namespaces — just key naming convention). No nesting beyond one level for simple values; shallow nesting (max 2 levels) for grouped concepts.
+**What people do:** Serialize `CharacterConfig` as JSON into the `ai_brief` string field on an existing Reference row to avoid creating a new store.
 
-```json
-{
-  "board.loading": "Loading board…",
-  "board.untitled": "Untitled",
-  "generate.submit": "Generate",
-  "generate.cancel": "Cancel",
-  "settings.title": "Settings",
-  "settings.language": "Language",
-  "settings.languageLabel.en": "English",
-  "settings.languageLabel.tr": "Türkçe"
-}
-```
+**Why it's wrong:** The LLM vision service (`requestAutoBrief`) can overwrite `ai_brief` at any time for any character node that gets media uploaded or regenerated. Since `ai_brief` is a single string scalar, a vision update replaces the config silently. There is no "merge" for string fields — the PATCH sentinel only applies to the `data` dict on Node. Additionally, the References panel is a media-first UI; showing non-media preset rows in it creates a broken UX (no thumbnail, no media_id, not draggable to canvas).
 
-**Key naming convention:** `<area>.<concept>` where area is the component directory or concern (`board`, `generate`, `settings`, `node`, `dialog`, `references`, `activity`, `toolbar`, `toaster`, `account`). No deep nesting — flat dotted keys are easier to search and compare across locale files.
+**Do this instead:** A dedicated `characterPresets.ts` Zustand slice with localStorage persistence. Zero collision risk with the vision service; zero pollution of the References panel.
 
-### `frontend/src/i18n/locales/tr.json`
-Identical key set to `en.json`. Missing keys fall back to English at runtime; the TypeScript augmentation does not enforce tr.json completeness (it types against en.json only), so completeness is enforced by convention and code review.
+### Anti-Pattern 3: Writing migration back to backend at board load time
+
+**What people do:** On hydration, call `patchNode()` for every character node that has `charCountry` to strip and convert it — a "one-time migrate on first load" approach.
+
+**Why it's wrong:** On a board with 20 character nodes, this fires 20 PATCH requests before the user has done anything. It creates a false impression that the board has been modified. It burns requests against the local agent on every first load after upgrade. And it introduces a race with the component mount rendering the data before the PATCH completes.
+
+**Do this instead:** Convert-on-read in the in-memory hydration path (inside `loadInitialBoard`'s node mapping). The backend row remains in the old schema until the user naturally triggers a write (generation, explicit save). Migrate silently as users work, without a thundering-herd of PATCHes on startup.
+
+### Anti-Pattern 4: Putting wizard transient step state in a Zustand store
+
+**What people do:** Create `useCharacterWizardStore` with `currentStep`, `selectedGender`, `selectedHair`, etc. and manage wizard navigation there.
+
+**Why it's wrong:** Zustand slices are for state that needs to survive across component remounts or be read by components outside the wizard tree. The wizard mounts only while the dialog is open and unmounts when it closes. Its step selections are discarded on close. Putting them in a store means they accumulate stale data between dialog sessions and require explicit cleanup actions (the reset-on-open pattern already used for `charGender`/`charVibe` in `GenerationDialog`'s `useEffect` on `rfId` is a smell that the state shouldn't be in a shared slice in the first place). Local `useState` + resetting when the component unmounts is simpler and correct.
+
+**Do this instead:** `useState` for all transient wizard form state inside `CharacterWizard`. Only the library of saved presets goes in a store.
 
 ---
 
-## Vite Integration
+## Integration Points
 
-**No Vite plugin is needed.** Vite 5 treats JSON files as first-class ES module imports — `import en from "./locales/en.json"` works without configuration. HMR for JSON files works out of the box in Vite: editing `en.json` or `tr.json` during development triggers a hot module reload.
+### CharacterWizard ↔ generation store
 
-**Bundling:** Both locale files are included in the main bundle at build time. At 2-3 locales with ~300 keys each, the combined JSON payload is approximately 10-15 KB uncompressed, under 5 KB gzipped. Dynamic import / code splitting for locales is unnecessary complexity for this scale and would introduce Suspense requirements.
+The wizard calls `useGenerationStore.getState().dispatchGeneration(rfId, opts)` directly — the same pattern used by the existing `isCharacter` branch in `GenerationDialog`. No new store API needed.
 
-**TypeScript declarations:** No auto-generation needed. `i18next.d.ts` is hand-written once and updated when the key structure changes. The `typeof en` reference in the augmentation means TypeScript re-infers key types automatically whenever `en.json` changes — no code generation step.
+### CharacterWizard ↔ board store
 
----
+The wizard calls `useBoardStore.getState().updateNodeData(rfId, charFields)` for optimistic UI update, then `patchNode(dbId, { data: charFields })` for persistence — identical to the existing pattern.
 
-## `<html lang>` Management
+### characterPresets store ↔ localStorage
 
-**Strategy:** DOM-managed via a `useEffect` in `App.tsx`. The attribute is not managed by React's virtual DOM (it lives outside `#root`) — direct DOM mutation is the correct approach.
+`characterPresets.ts` reads from `localStorage.getItem("flowboard.character.presets.v1")` at slice creation time (module-level init in `create<State>()`). Writes happen in `save()` and `remove()`. Pattern directly mirrors `loadPersistedPanelOpen()` / `persistPanelOpen()` in `store/references.ts:44-61`.
 
-```typescript
-// frontend/src/App.tsx  (add inside App function)
-import { useTranslation } from "react-i18next";
+### migrateCharacterNodeData ↔ board hydration
 
-const { i18n } = useTranslation();
-useEffect(() => {
-  document.documentElement.lang = i18n.resolvedLanguage ?? "en";
-}, [i18n.resolvedLanguage]);
-```
+`store/board.ts` imports `migrateCharacterNodeData` from `lib/character/migrate.ts` and applies it in the node-mapping step of `loadInitialBoard`. This is the only integration point for migration — no other file needs to call it.
 
-**Baseline:** `frontend/index.html` currently has `<html lang="en">`. This static value is correct for the initial render. The `useEffect` updates it after React hydrates — for a Vite SPA with no SSR there is no hydration mismatch risk. The update is immediate (synchronous with the first render commit) because `i18n.resolvedLanguage` is populated before React renders when using the module-level init pattern.
+### buildCharacterPrompt ↔ CharacterWizard
 
-**RTL:** Not applicable — Turkish is LTR. Do not add `dir` attribute logic in v1. The pattern is established here if a future RTL locale is contributed.
-
----
-
-## Component Boundaries — What Touches i18n
-
-| Area | Touches i18n? | Notes |
-|------|---------------|-------|
-| `frontend/src/main.tsx` | Yes — provider mount + import | One-time setup |
-| `frontend/src/App.tsx` | Yes — lang attribute effect | 3-line addition |
-| `frontend/src/store/settings.ts` | Yes — locale field + setLocale() | Owns locale persistence |
-| `frontend/src/components/SettingsPanel.tsx` | Yes — locale picker UI | Add dropdown section |
-| `frontend/src/canvas/Board.tsx` | Yes — UI strings | useTranslation() added |
-| `frontend/src/canvas/NodeCard.tsx` | Yes — heaviest string density | useTranslation() added |
-| `frontend/src/canvas/AddNodePalette.tsx` | Yes — button labels | useTranslation() added |
-| `frontend/src/components/GenerationDialog.tsx` | Yes — largest single component | useTranslation() added |
-| `frontend/src/components/ResultViewer.tsx` | Yes — overlay strings | useTranslation() added |
-| `frontend/src/components/ProjectSidebar.tsx` | Yes — sidebar labels | useTranslation() added |
-| `frontend/src/components/ReferencesPanel.tsx` | Yes — panel strings | useTranslation() added |
-| `frontend/src/components/Toolbar.tsx` | Yes — toolbar buttons | useTranslation() added |
-| `frontend/src/components/StatusBar.tsx` | Yes — status text | useTranslation() added |
-| `frontend/src/components/ForcedSetupGate.tsx` | Yes — setup gate copy | useTranslation() added |
-| `frontend/src/components/activity/*` | Yes — activity feed labels | useTranslation() added |
-| `frontend/src/components/settings/*` | Yes — AI provider settings | useTranslation() added |
-| `frontend/src/api/client.ts` | No | Backend stays English; `humanizeBackendError()` returns English strings — acceptable per project scope |
-| `frontend/src/lib/storyboardPrompt.ts` | No | Pure logic, no UI strings |
-| `frontend/src/constants/character.ts` | No | Tag values are data, not UI copy |
-| Backend (`agent/`) | No | Explicitly out of scope |
-| Extension (`extension/`) | No | Explicitly out of scope |
-
----
-
-## Migration Build Order
-
-The recommended order minimizes risk (keep English working throughout) and produces testable increments.
-
-### Phase 1: Scaffolding (no string changes, no visible change to users)
-
-1. Install: `npm install i18next react-i18next i18next-browser-languagedetector`
-2. Create `frontend/src/i18n/i18n.ts` — empty resources `{ en: { translation: {} }, tr: { translation: {} } }`
-3. Create `frontend/src/i18n/locales/en.json` — empty object `{}`
-4. Create `frontend/src/i18n/locales/tr.json` — empty object `{}`
-5. Create `frontend/src/i18n/i18next.d.ts` — module augmentation pointing at `en.json`
-6. Update `frontend/src/main.tsx` — add import + `<I18nextProvider>` wrap
-7. Update `frontend/src/store/settings.ts` — add `locale` field + `setLocale()`
-8. Update `frontend/src/App.tsx` — add `useEffect` for `document.documentElement.lang`
-
-**Checkpoint:** App boots, renders in English, no TypeScript errors, no behavioral change.
-
-### Phase 2: English Catalog Extraction (English only, no Turkish yet)
-
-Extract all hardcoded strings from JSX into `en.json`. Work directory by directory:
-
-1. `frontend/src/canvas/` — Board.tsx, NodeCard.tsx, AddNodePalette.tsx
-2. `frontend/src/components/GenerationDialog.tsx` + `ResultViewer.tsx` (largest components)
-3. `frontend/src/components/ProjectSidebar.tsx`, `ReferencesPanel.tsx`, `Toolbar.tsx`, `StatusBar.tsx`
-4. `frontend/src/components/ForcedSetupGate.tsx`, `SponsorDialog.tsx`, `AiProviderDialog.tsx`
-5. `frontend/src/components/activity/*`
-6. `frontend/src/components/settings/*`
-7. `frontend/src/components/Toaster.tsx`, `AccountPanel.tsx`, `SettingsPanel.tsx`
-
-For each file: replace `"hardcoded string"` with `t("area.key")`, add the key to `en.json`, add `const { t } = useTranslation()` at the component top.
-
-**Checkpoint:** App renders identically in English. `en.json` has full coverage. TS compiler enforces key existence — any `t()` call with an unregistered key is a type error.
-
-### Phase 3: Turkish Catalog + Locale Switcher
-
-1. Copy `en.json` to `tr.json`, translate all values to Turkish
-2. Add language picker dropdown to `SettingsPanel.tsx` (calls `setLocale()`)
-3. Add locale to `i18n.ts` resources: `tr: { translation: tr }`
-4. Verify `i18n.ts` detection order correctly reads from localStorage on reload
-
-**Checkpoint:** Switch to Turkish, drive a full generation flow end-to-end, switch back. All English strings still intact.
-
-### Phase 4: Polish
-
-1. Handle any pluralization cases (i18next `_plural` suffix or `count` interpolation)
-2. Audit any string that was skipped (error messages, empty states, `aria-label` values)
-3. Freeze `en.json` key shape — document the "English is canonical" rule in a comment at the top of `i18n.ts`
-
----
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Calling i18n.init() Inside a React Component or useEffect
-
-**What people do:** `useEffect(() => { i18n.init({ ... }) }, [])` in `App.tsx`.
-**Why it's wrong:** React 18 StrictMode double-invokes effects in development. The second invocation calls `init()` on an already-initialized instance, which logs warnings and may trigger re-renders. The fix is to move init to module scope.
-**Do this instead:** Import `./i18n/i18n.ts` as a side-effect in `main.tsx`. Module-level code runs once.
-
-### Anti-Pattern 2: Namespace Split at This Scale
-
-**What people do:** `useTranslation('canvas')`, `useTranslation('settings')`, `useTranslation('dialogs')` with separate JSON files per namespace.
-**Why it's wrong:** At <300 strings bundled statically, there is no load-time benefit. It adds `ns` declarations to `i18n.ts`, requires every component to know which namespace it belongs to, and makes OSS locale contributions harder (contributor must find the right file).
-**Do this instead:** Single flat `translation` namespace. Use key prefixes (`canvas.`, `settings.`, `dialog.`) as naming convention without actual namespace splitting.
-
-### Anti-Pattern 3: Zustand as the Source of Truth for Rendered Translations
-
-**What people do:** Components read locale from Zustand and look up strings from a dictionary in the store.
-**Why it's wrong:** React re-render propagation goes through Zustand subscription, not i18next's internal subscription. Components that don't subscribe to the locale field won't re-render on change. Results in partial UI updates.
-**Do this instead:** Components use `useTranslation()` from react-i18next. Zustand holds locale as a mirror for persistence and the settings UI display only. i18next handles all re-render subscriptions.
-
-### Anti-Pattern 4: Dynamic Import / HTTP Backend for 2 Locales
-
-**What people do:** `i18next-http-backend` loading from `/public/locales/{{lng}}/translation.json` at runtime.
-**Why it's wrong:** Adds a network request on every cold start. Requires `React.Suspense` fallback while translations load. Complicates Vite's build graph (files must be in `public/`, not `src/`). No benefit when the total locale payload is <5 KB gzipped.
-**Do this instead:** Static JSON import at build time. Vite bundles both locale files into the main chunk. First render has translations available synchronously.
-
-### Anti-Pattern 5: Hardcoded `document.documentElement.lang = "en"` in index.html as the Only Mechanism
-
-**What people do:** Leave `<html lang="en">` static and never update it.
-**Why it's wrong:** Screen readers announce the page language at load time and on navigation. If a Turkish user has set their preference, every page announces "English" — breaks accessibility.
-**Do this instead:** Keep the static `lang="en"` in `index.html` as the correct initial value, and add the `useEffect` in `App.tsx` to update it on locale change.
-
----
-
-## Packages
-
-```bash
-# Runtime dependencies
-npm install i18next react-i18next i18next-browser-languagedetector
-
-# No dev dependencies needed — TypeScript types are bundled
-# i18next ships its own @types; no @types/i18next needed
-```
-
-Current versions as of 2026-06: i18next 24.x, react-i18next 15.x, i18next-browser-languagedetector 8.x. All support React 18, TypeScript 5, and the `CustomTypeOptions` augmentation pattern.
+`CharacterWizard` imports `buildCharacterPrompt` for the Review step preview and passes the same result to `dispatchGeneration` on Submit. Pure function, no side effects, no store access.
 
 ---
 
 ## Sources
 
-- react-i18next official docs: https://react.i18next.com/latest/using-with-hooks
-- react-i18next quick start: https://react.i18next.com/guides/quick-start
-- i18next TypeScript docs: https://www.i18next.com/overview/typescript
-- i18next namespace principles: https://www.i18next.com/principles/namespaces
-- i18next-browser-languagedetector README: https://github.com/i18next/i18next-browser-languageDetector
-- i18next translation loading: https://www.i18next.com/how-to/add-or-load-translations
-- react-i18next TypeScript page: https://react.i18next.com/latest/typescript
+- Direct code analysis: `frontend/src/components/GenerationDialog.tsx` (character builder, buildCharacterPrompt, dispatch path)
+- Direct code analysis: `frontend/src/canvas/NodeCard.tsx` (CharacterBody, modal trigger pattern)
+- Direct code analysis: `frontend/src/store/board.ts` (FlowboardNodeData interface, charCountry/charVibe/charGender fields)
+- Direct code analysis: `frontend/src/store/generation.ts` (dispatchGeneration signature, store boundaries)
+- Direct code analysis: `frontend/src/store/references.ts` (localStorage persistence pattern)
+- Direct code analysis: `frontend/src/components/ReferencesPanel.tsx` (media-first UX, Reference kind semantics)
+- Direct code analysis: `agent/flowboard/routes/nodes.py` (shallow-merge PATCH contract, null-sentinel behaviour)
+- Direct code analysis: `agent/flowboard/db/models.py` (Reference.ai_brief field, Node.data JSON column)
+- Direct code analysis: `frontend/src/constants/character.ts` (CHARACTER_COUNTRIES tags used for migration mapping)
+- Project context: `CLAUDE.md` anti-pattern "Wholesale replace of node.data JSON column"
+- Project context: `.planning/PROJECT.md` v1.1 milestone scope and constraints
 
 ---
 
-*Architecture research for: Flowboard i18n integration*
-*Researched: 2026-06-10*
+*Architecture research for: character wizard integration into Flowboard canvas generation pipeline*
+*Researched: 2026-06-16*

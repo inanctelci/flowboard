@@ -1,524 +1,310 @@
 # Pitfalls Research
 
-**Domain:** React i18n retrofit — hardcoded-string extraction into react-i18next on a mature Vite + TS-strict + Zustand SPA
-**Researched:** 2026-06-10
-**Confidence:** HIGH
+**Domain:** React 18 + Zustand SPA — multi-step wizard, structured node.data fields, saveable library, preset removal with migration
+**Researched:** 2026-06-16
+**Confidence:** HIGH (grounded in live codebase reading of all affected files)
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Translating `@xyflow/react` node `data.title` — the single easiest mistake in this codebase
+### Pitfall 1: Wholesale `node.data` Replace Disguised as a Struct Migration
 
 **What goes wrong:**
-`FlowboardNodeData.title` is user-authored content — it is the name the user gave their node ("My hero character", "Product shot v2"). Wrapping `{data.title}` in `t()` translates it, turning user content into a lookup key, which either shows a raw key string or silently maps to a fixed UI phrase. Every existing board becomes corrupted in Turkish locale.
-
-The trap is visually subtle: `NodeCard.tsx` renders `data.title` alongside UI chrome strings like `"Upload"`, `"Generate"`, `"Save to library"`. They live in the same JSX, so a blanket grep-replace `"..."` → `t("...")` will catch both.
+When converting the wizard's structured output (`{ charGender, charEthnicity, charAge, charHair, charOutfit, charVibe, charExpression, charLighting }`) into a PATCH call, a developer constructs the full `data` object from wizard state and sends it. This silently deletes all other fields on the node — `mediaId`, `mediaIds`, `aiBrief`, `aspectRatio`, `renderedAt`, `imageModel`, `prompt`, `briefPlan`, etc. — because the backend merges only one level deep (CLAUDE.md `frontend/src/api/client.ts:196-219` docblock).
 
 **Why it happens:**
-Automated extraction tools (i18next-parser, babel-plugin-i18next-extract) parse JSX and flag every string literal — they cannot distinguish user-authored data from static copy. A developer running the tool and applying all suggestions without reviewing each hit will wrap `data.title`, `data.prompt`, `data.aiBrief`, `ref.label`, and board names.
+The wizard knows all the character fields and it is natural to build `data: { charGender: ..., charEthnicity: ..., charVibe: ... }` as a fresh object. When the developer forgets that `patchNode` is a shallow-merge PATCH (not a PUT), the existing node media is lost instantly. The v1.0 retrospective already documented an identical regression: `aspectRatio` was wiped on every image gen by an auto-brief patch that reconstructed the full data blob.
 
 **How to avoid:**
-Before extraction, identify and mark every variable that holds user-authored content:
-- `data.title` — node name
-- `data.prompt` — generation prompt text
-- `data.aiBrief` — AI-generated description of user's media
-- `ref.label` — reference library name
-- `board.name` — board title
-- Any string that came over the wire from `/api/*` and represents user-created content
-
-These never go through `t()`. They render as-is: `{data.title}`, not `{t(data.title)}`. Document this boundary as a comment in `NodeCard.tsx` and `ReferencesPanel.tsx` before extraction begins.
+Send only the delta — the specific character struct keys that changed. Never construct the full `data` blob in the wizard submit path. Before adding any new top-level key (`charEthnicity`, `charAge`, etc.), verify it does not collide with existing keys in `FlowboardNodeData` (`store/board.ts:31-97`): `type`, `shortId`, `title`, `status`, `prompt`, `thumbnailUrl`, `mediaId`, `mediaIds`, `slotErrors`, `variantCount`, `aspectRatio`, `aiBrief`, `aiBriefStatus`, `autoPromptStatus`, `renderedAt`, `imageModel`, `videoQuality`, `charCountry`, `charVibe`, `charGender`, `error`, `storyboardGrid`. The wizard submit must call `patchNode(dbId, { data: wizardDelta })` where `wizardDelta` is only the fields that changed.
 
 **Warning signs:**
-If after applying translations, switching to Turkish causes any node label on an existing board to display a raw key like `"node.title"` or to render a fixed Turkish phrase, user data is being translated.
+- After submitting the wizard, `node.data.mediaId` is undefined on the canvas even though the node had an uploaded photo.
+- ResultViewer shows "pending" for a node that had rendered media.
+- `aiBrief` disappears from the brief hint after a wizard re-open.
 
-**Phase to address:** Extraction — establish the user-data boundary checklist before any string is wrapped.
+**Phase to address:** Data-model phase (the phase that defines `FlowboardNodeData` extensions and the PATCH contract for the wizard).
 
 ---
 
-### Pitfall 2: Missing strings in non-JSX locations — the "invisible" 40%
+### Pitfall 2: `null` Sentinel Confusion — Clearing vs. Omitting New Fields
 
 **What goes wrong:**
-JSX visible text is the easy 60%. The remaining 40% is invisible at render time and gets missed entirely:
-
-| Location | Concrete example in Flowboard | Why missed |
-|----------|-------------------------------|------------|
-| `aria-label` | `aria-label="Replace character image"` (`NodeCard.tsx:170`), `aria-label="Dismiss error"` (`Toaster.tsx:58`), `aria-label="Save to library"` (`NodeCard.tsx:192`) | Not visible text; linters that scan text content skip it |
-| `title` attribute | `title="Save this character to the library"` (`NodeCard.tsx:189`), `title={tip}` passed to `InfoTip` (`GenerationDialog.tsx:200`) | Tooltip, not rendered in DOM text |
-| `placeholder` | Any `<input placeholder="...">` in the settings panels or dialog textarea | Attribute, not child text |
-| Store error strings | `set({ error: "Open Flow once so the extension can detect your plan..." })` (`generation.ts:170`), `setError("no project")` (`NodeCard.tsx:112`), `setError(... "upload failed")` (`NodeCard.tsx:119`) | In TS files, no JSX, grep for `"` misses the context |
-| `humanizeBackendError()` | The 4 long English-sentence branches in `api/client.ts:18-56` | Utility function, not a component |
-| `document.title` | `index.html` has `<title>Flowboard</title>` — never updated dynamically, but if it ever is the string will be in TS not JSX |
-| `activity-meta.ts` labels | `label: "Auto-Prompt"`, `label: "Generate image"` etc. in `ACTIVITY_TYPE_META` and `STATUS_META` | Pure data module, no JSX |
-| `CAMERA_MOVEMENTS[*].label` | `"Static"`, `"Dynamic"` in `GenerationDialog.tsx:92-104` | Inline array constant, not text node |
-| `VIDEO_MODEL_CHIPS[*].label` | `"Veo 3.1 Lite"`, `"Omni Flash"` in `GenerationDialog.tsx:127-131` | Same |
-| `IMAGE_MODELS[*].label/hint` | `"Nano Banana Pro"`, hint strings in `SettingsPanel.tsx:28-38` | Data array in component file |
-| `formatRelativeTime()` | Vietnamese-hardcoded strings `"vừa xong"`, `"phút trước"`, `"giờ trước"` in `ResultViewer.tsx:60-73` | Already localised to one language, now needs i18n |
-| `relativeTime()` in `activity-meta.ts:49-63` | Produces `"just now"`, `"${sec}s ago"` etc. | Utility function |
+The shallow-merge contract uses `null` as the explicit "delete this key" sentinel (`client.ts:196-219`). When adding new wizard fields (`charEthnicity`, `charAge`, etc.), a developer might send `undefined` for fields the user left blank, expecting them to simply not appear. `JSON.stringify` drops `undefined` silently, so the first save creates the key with a real value; a subsequent "clear field" sends `undefined` again — the stale value survives in SQLite because the merge never received a delete instruction.
 
 **Why it happens:**
-Extraction passes scan for JSX text nodes and string literals inside JSX attribute positions. Pure TS modules, store actions, and utility functions require a manual audit.
+The existing character stamp pattern in `GenerationDialog.tsx:646-654` already uses a conditional guard (`if (charCountry) charStamp.charCountry = charCountry`) that means clearing is never signaled — it only sets when truthy. A wizard with explicit "none" selections must distinguish "user cleared this" (send `null`) from "user did not touch this" (omit key).
 
 **How to avoid:**
-Run this targeted grep before claiming extraction is complete:
-```bash
-# aria-label, title, placeholder attributes
-grep -rn 'aria-label=\|title=\|placeholder=' frontend/src/ --include="*.tsx" --include="*.ts"
-
-# String assignments in store actions (the error slots)
-grep -rn 'set({.*error:' frontend/src/store/ --include="*.ts"
-grep -rn 'setError(' frontend/src/ --include="*.tsx" --include="*.ts"
-
-# Strings in .ts utility/data files (non-JSX)
-grep -rn '"[A-Z][a-z]' frontend/src/ --include="*.ts" | grep -v '\.tsx'
-```
-
-Also manually audit: `frontend/src/api/client.ts` (all of `humanizeBackendError`), `frontend/src/components/activity/activity-meta.ts` (all label/status strings), `frontend/src/components/ResultViewer.tsx` (`formatRelativeTime` and `formatAspectRatio`), `frontend/src/components/activity/activity-meta.ts` (`relativeTime`, `formatDuration`).
+For every wizard field that the user can explicitly clear (set to no selection), map the cleared state to `null` in the PATCH delta, not `undefined`. Write a helper `toDataPatch(wizardState: WizardState): DataPatch` that maps `""` / `null` / `undefined` form values to explicit `null` so clearing always propagates. The `DataPatch` type (`client.ts:206`) already accepts `null` values — lean into it.
 
 **Warning signs:**
-After Turkish translation is applied, switch the app to Turkish and trigger an upload failure — if the error toast shows English, the store error strings were missed.
+- Clearing a field in the wizard, saving, then reopening shows the old value still selected.
+- SQLite `data` column still holds the old key after the user explicitly blanked it.
+- `localizedCountryLabel(data.charCountry)` returns a label in ResultViewer after the user switched to a free-text ethnicity field.
 
-**Phase to address:** Extraction — build a complete string inventory from grep before touching any file.
+**Phase to address:** Data-model phase.
 
 ---
 
-### Pitfall 3: Dynamic key construction breaks static analysis and missing-key detection
+### Pitfall 3: Shipped Boards Break Because `localizedCountryLabel` / `localizedVibeLabel` Return `null` for Unknown Keys
 
 **What goes wrong:**
-The `humanizeBackendError` function in `api/client.ts` does substring matching on error tokens:
-```ts
-// Current (partially dynamic):
-if (t.startsWith("public_error_")) {
-  return token.replace(/^PUBLIC_ERROR_/i, "Flow rejected: ").replace(/_/g, " ");
-}
-```
-
-A developer might refactor this into:
-```ts
-// Tempting but wrong:
-return t(`error.${errorCode}`);
-```
-
-This pattern:
-1. Cannot be statically analysed — i18next-parser does not know which keys exist at runtime.
-2. Makes the Turkish JSON file's coverage impossible to verify — `tsc` and the parser both report 0 missing keys even if 30 are absent.
-3. Breaks tree-shaking optimizations that some i18next plugins do at build time.
-
-The same trap appears anywhere a key contains a variable segment: `t(\`status.${status}\`)`, `t(\`nodeType.${type}\`)`, `t(\`model.${quality}\`)`.
+`ResultViewer.tsx:656-670` calls `localizedCountryLabel(data.charCountry)` and `localizedVibeLabel(data.charVibe)` and renders pills only when they return non-null. The current implementations in `constants/character.ts:122-147` include a `default` branch that falls back to the raw `.label` from the constants array. When the constants file is deleted and those functions are removed, existing nodes with `charCountry: "vn"` and `charVibe: "clean"` either throw (import error) or silently return `null` (if the helper is replaced with one that only covers the new structured model), and the pills disappear without any error.
 
 **Why it happens:**
-Dynamic keys feel DRY. The app has many enum-like values (`NodeStatus`, `VideoQuality`, `NodeType`) that map to labels — building keys programmatically avoids writing one translation per value.
+The coupling is in two directions: the keys stored on `node.data` are the old preset keys (`vn`, `jp`, `clean`, `douyin`), and ResultViewer looks them up via the helper functions that reference the now-deleted constants array. Removing the file or gutting the helpers simultaneously breaks all shipped boards.
 
 **How to avoid:**
-Use explicit object maps with individual `t()` calls instead:
-```ts
-// In the translation catalog:
-// { "status.queued": "Sırada", "status.running": "İşleniyor", ... }
-
-// In code — explicit, statically analysable:
-const STATUS_LABELS: Record<NodeStatus, string> = {
-  queued:  t("status.queued"),
-  running: t("status.running"),
-  done:    t("status.done"),
-  error:   t("status.error"),
-};
-```
-For `humanizeBackendError` specifically: keep the function as a TS switch/if-chain that calls `t("error.paygate_tier_unknown")` etc. per known token, with a fallback that returns `null` for unknown tokens (already the pattern — just swap the English strings for `t()` calls).
-
-Dynamic keys are acceptable ONLY when the key set is externally defined and cannot be enumerated at build time (e.g. backend-generated event types where coverage completeness is not required). Not the case here.
+The migration phase must preserve backward-compat display for the old keys before deleting the constants file. Options: (1) keep `legacyCountryLabel` and `legacyVibeLabel` as frozen maps in a migration shim module until a backfill script has updated all existing nodes, or (2) make the new label resolver accept both old keys (`"vn"`) and new structured values (`"Vietnamese"`). The backfill must PATCH the SQLite `node.data` for every character node to convert `charCountry`/`charVibe` into the new schema before the constants file is touched. Only after `tsc -b --noEmit` passes with the shim removed should the delete be committed.
 
 **Warning signs:**
-A translation JSON file that has zero missing keys reported by the extraction tool but the app still shows untranslated strings at runtime.
+- Boards created before v1.1 open with missing country/vibe pills in ResultViewer but no console error.
+- `localizedCountryLabel("vn")` returns `null` in a dev console test after the refactor.
+- TypeScript reports no error because the return type is already `string | null` — no static signal of the behavioral change.
 
-**Phase to address:** Extraction — establish the no-dynamic-keys rule before writing any `t()` call.
+**Phase to address:** Migration phase (must run before constants deletion).
 
 ---
 
-### Pitfall 4: Layout breakage under longer strings — buttons, chips, and dialog headers
+### Pitfall 4: Prompt Regression — Framing Anchors Lost or Reordered
 
 **What goes wrong:**
-Several UI elements in Flowboard have implicit width assumptions baked into CSS:
-
-- `NodeCard.tsx` buttons: `"Upload"`, `"Generate"`, `"★ Save"` — these sit inside a compact card body. Turkish equivalents: `"Yükle"` (shorter), `"Oluştur"` (same length), `"★ Kaydet"` (similar) — Turkish is friendly here but other community locales won't be. More critically, `"Generating…"` → Turkish `"Oluşturuluyor…"` is 40% longer and sits inline.
-- `GenerationDialog.tsx` video model chips: `"Veo 3.1 Lite (Low Priority)"` is already long. If a community locale translates this to a longer phrase, the chip row wraps unexpectedly.
-- `SettingsPanel.tsx` hint text: hint strings in `IMAGE_MODELS` and `VIDEO_QUALITIES` are 60-90 character English sentences. Turkish sentences of equivalent meaning are often 20-30% longer.
-- `Toaster.tsx` error messages: `humanizeBackendError` produces multi-sentence English paragraphs. The toaster has no scroll or max-height — very long Turkish sentences overflow the card height.
-- `activity-meta.ts` `STATUS_META.label` strings: used as badge text in `ActivityRow`. English `"running"` → Turkish `"çalışıyor"` is 12% longer — probably fine. But `"canceled"` → `"iptal edildi"` is 33% longer and can break a narrow badge.
+The existing `buildCharacterPrompt` in `GenerationDialog.tsx:46-74` has a carefully ordered sequence: subject line → pose anchors → vibe tokens → extras → framing anchors → negative constraints. The comment explicitly notes "diffusion models weight earlier tokens more — vibe tokens like 'editorial / magazine beauty' otherwise pull toward fashion 3/4 turns." When the wizard replaces this with a new assembler that reorganizes the order (e.g. puts hair/outfit before the frontal-face lock, or omits the negative constraints at the end), generated images start showing off-axis heads, profile views, or occluded faces — silently, because there is no test.
 
 **Why it happens:**
-CSS was written against English string lengths. No i18n load was ever placed on the layouts during development.
+The new wizard has distinct fields (hair, outfit, expression, lighting) that feel natural to append in step order. A developer building `buildWizardPrompt` from scratch may not preserve the exact token ordering or the closing negatives ("no glasses, no hat, no mask, no occlusion", "no head tilt, no head turn", "photorealistic, ultra-detailed, consistent character reference"). The old `tokens[]` arrays from the vibe presets were a compact way to carry multi-clause prompt fragments — replacing them with single-sentence field values flattens the structure and drops the multi-clause density.
 
 **How to avoid:**
-1. Use CSS `min-width` / `max-width` with `overflow: hidden; text-overflow: ellipsis` on badge/chip elements — not fixed `width`.
-2. Use `flex-wrap: wrap` on button rows so they stack rather than overflow on long strings.
-3. For the Toaster: add `max-height: 10rem; overflow-y: auto` so a very long translated error message is scrollable rather than overflowing the card.
-4. During the Turkish translation pass, manually check every translated string against the rendered UI at 1280×800 viewport — do not rely on English-only visual review.
-5. Use CSS logical properties (`margin-inline-start` instead of `margin-left`) — costs nothing now and future-proofs for RTL (see Pitfall 12).
+Keep the prompt assembler as a pure function in its own module (`lib/buildCharacterPrompt.ts`) with an explicit ordering contract documented in comments. The framing anchors and negatives must be hardcoded at fixed positions (not user-editable). Run A/B validation: generate a batch with the old function and the new function using the same logical inputs, compare outputs. Gate the wizard phase on this comparison before deleting the old assembler.
 
 **Warning signs:**
-After switching to Turkish, take a screenshot. Any button text that is clipped, any dialog that is taller than the viewport, any chip row that wraps unexpectedly is a layout bug.
+- Generated character images start showing 3/4-angle views or slight head tilts.
+- Framing anchors ("head and shoulders", "both eyes equally visible") do not appear in the dispatched prompt string (inspect via the ResultViewer's prompt display).
+- The new assembler's comma-joined output differs significantly in token density from the old `.tokens.join(", ")` output for the same logical character.
 
-**Phase to address:** Polish — address layout after translations are applied so real string lengths drive the fix.
+**Phase to address:** Wizard UI phase (the assembler ships alongside the wizard), validated before removing the old builder.
 
 ---
 
-### Pitfall 5: Translating inside Zustand store actions — the "headless translation" trap
+### Pitfall 5: Wizard State Lost on Close/Reopen (Step Regression)
 
 **What goes wrong:**
-Flowboard stores construct user-visible strings outside React components. Specific sites:
-
-- `store/generation.ts:170`: `set({ error: "Open Flow once so the extension can detect your plan..." })` — English sentence hardcoded in a Zustand action.
-- `store/generation.ts:218` (approximately): similar pattern for the "no ingredients" Omni Flash error.
-- `api/client.ts:18-56`: `humanizeBackendError()` — pure TS function, not a component.
-- `api/client.ts` (the bare `api()` function): `throw new Error(\`${res.status} ${res.statusText}\`)` — not translated but worth noting.
-
-The `useTranslation()` hook is React-only and cannot be called from a Zustand action or a plain utility function. Calling it outside a component will throw a React hooks violation.
+The wizard is mounted inside `GenerationDialog` or as a sibling dialog. When the user partially fills steps (identity → appearance) then closes the dialog (accidentally hits ESC or backdrop), all wizard state is lost. On reopen, the wizard starts at step 1 with blank fields. If the wizard mounts as local `useState` inside the dialog component, it resets every time `rfId` in the generation store transitions `null → non-null` because the `useEffect` on `[rfId]` at `GenerationDialog.tsx:392` already calls `setCharGender(null)`, `setCharCountry(null)`, etc. to reset form state on open.
 
 **Why it happens:**
-During extraction, a developer sees the English strings, grabs `useTranslation`, and tries to call `t()` in the store action — then hits a runtime error. The temptation then is to convert the action to a React callback, which incorrectly couples the store to the component layer.
+The existing reset-on-open pattern (`GenerationDialog.tsx:445-448`) was intentional for the old single-screen character section. The wizard's multi-step state should NOT be reset on every open — at minimum it should persist until the user explicitly clears or submits. But if wizard step/field state lives in `useState` inside the dialog, the component unmount/remount cycle (or the intentional reset in the useEffect) wipes it.
 
 **How to avoid:**
-Use `i18n.t()` (the i18next instance directly) instead of the hook for code outside React:
-```ts
-// In store actions and utility functions — import the i18n instance:
-import i18n from "../i18n"; // the configured i18next instance export
-
-// In the Zustand action:
-set({ error: i18n.t("errors.openFlowForTier") });
-
-// In humanizeBackendError:
-if (t === "paygate_tier_unknown") {
-  return i18n.t("errors.paygateUnknown");
-}
-```
-
-The i18n instance must be a named export from the i18n setup file (e.g. `frontend/src/i18n.ts`), separate from the React provider. This is the standard react-i18next pattern — `i18next` is the singleton, `react-i18next` wraps it with React integration.
+Lift wizard-in-progress state above the dialog. Either: (a) keep a `charDraft: WizardState` in the generation store or a dedicated wizard store slice, initialized when the dialog opens for a character node and cleared only on submit or explicit "Start Over"; (b) keep local state but don't call the reset setters until the user explicitly clicks "Start Over" — only reset when `rfId` changes to a DIFFERENT node, not on every open/close of the same node. The current `useEffect` must check `if (rfId !== prevRfId)` before resetting character fields.
 
 **Warning signs:**
-Any `import { useTranslation }` in a `.ts` file (not `.tsx`) is the bug. The TS compiler with strict mode will not catch this — it will compile, then throw at runtime when the action fires.
+- User fills steps 1-3 of the wizard, presses ESC accidentally, reopens — form is blank.
+- Character nodes show a "half-filled" wizard in the UI that does not match `node.data` (data was not yet saved mid-steps).
+- Browser back/forward navigation causes step regression on the canvas.
 
-**Phase to address:** Setup — establish the `i18n.t()` vs `useTranslation()` split rule as part of wiring the i18n infrastructure, before extraction begins.
+**Phase to address:** Wizard UI phase.
 
 ---
 
-### Pitfall 6: Initial render flicker — locale JSON loads async, first paint is English
+### Pitfall 6: Multi-Step Validation Trap — Last-Step Submit Rejects Valid Data
 
 **What goes wrong:**
-react-i18next loads locale JSON asynchronously (XHR or dynamic import). On first paint, before the Turkish JSON resolves, the app renders with fallback language (English). The user sees English, then immediately sees Turkish — a visible flash on every page load. On slow machines or slow storage this is 100-300 ms of wrong language.
+A common wizard anti-pattern: validation is run across ALL fields at the submit step, so a user who intentionally left "expression" blank on step 4 (it should be optional) gets a blocking error on step 5 preventing submit. Alternatively, the inverse: per-step validation is so strict that the wizard blocks "Next" on step 2 if the user has not selected every optional field, effectively making optional fields required.
 
 **Why it happens:**
-The default i18next `initImmediate: true` behaviour does not block rendering. The `<I18nextProvider>` mounts immediately and the first render uses the fallback language.
+Developers conflate "the form has fields" with "all fields are required." For the character wizard: gender, ethnicity, and vibe are the high-signal mandatory fields; hair, expression, and lighting are optional enhancers. Treating them symmetrically in validation produces either over-blocking (strict) or no feedback (permissive with all validation deferred to submit).
 
 **How to avoid:**
-For a local-only Vite app, inline the locale files as static imports rather than using the XHR backend. With Vite, this means:
-```ts
-// i18n.ts
-import i18n from "i18next";
-import { initReactI18next } from "react-i18next";
-import en from "./locales/en.json";
-import tr from "./locales/tr.json";
-
-i18n.use(initReactI18next).init({
-  resources: { en: { translation: en }, tr: { translation: tr } },
-  lng: detectLocale(), // synchronous read from localStorage
-  fallbackLng: "en",
-  interpolation: { escapeValue: false },
-});
-
-export default i18n;
-```
-
-With bundled resources, `i18n.init()` resolves synchronously and there is no flicker. This is appropriate for a local app where bundle size is not constrained (stated in PROJECT.md: "Build size matters less than maintainability").
-
-Do NOT use `i18next-http-backend` (fetches JSON at runtime) — it introduces the flicker and adds no value for a single-user local SPA.
+Define a `REQUIRED_FIELDS` set per step explicitly in the wizard constants before coding validation. The existing `canGenerate` check in `GenerationDialog.tsx:761-766` shows the right pattern: gate submit on the minimum viable signal, not on form completeness. For the character wizard: submit should be enabled when at least one of (ethnicity, vibe, extras) is non-empty — the same lightweight gate as the current `charGender !== null || charCountry !== null || charExtras.trim().length > 0`. Step navigation should never block on optional fields.
 
 **Warning signs:**
-In the browser DevTools Network tab, if you see `GET /locales/tr/translation.json` (an HTTP request for locale JSON), you are using the HTTP backend and will have flicker. With bundled resources, no such request appears.
+- User can click "Next" from step 1 to step 2 but gets blocked on step 2 because they did not select a hair style (optional).
+- Submit on the review step shows a validation error for a field the user intentionally left blank.
+- `canGenerate` is `false` with all mandatory fields filled because an optional field is empty.
 
-**Phase to address:** Setup — choose the bundled-resource approach when wiring i18n infrastructure.
+**Phase to address:** Wizard UI phase.
 
 ---
 
-### Pitfall 7: Hot module reload of locale JSON silently stale in Vite
+### Pitfall 7: `charCountry`/`charVibe` Key Collision After Schema Shift
 
 **What goes wrong:**
-When using `import tr from "./locales/tr.json"` (the correct bundled approach from Pitfall 6), Vite's HMR does watch JSON files and will hot-reload them. However, if the i18n instance is initialized at module level (outside a React component) and the JSON import is referenced by the initialized resources object, adding a new key to the JSON during development will NOT cause the running app to see the new key until a full page reload. The HMR update replaces the module but the already-initialized `i18n` instance still holds the old resources object in memory.
+The new wizard introduces `charEthnicity` as a free-text field replacing `charCountry`. The old key `charCountry` holds values like `"vn"`, `"jp"` on shipped nodes. If the wizard write path reuses the key name `charCountry` for the new free-text value (e.g. `charCountry: "Vietnamese"` instead of the old enum `"vn"`), the ResultViewer's `localizedCountryLabel("Vietnamese")` returns `null` for a new node because it only covers the old enum keys. If the write path uses a new key `charEthnicity`, then the ResultViewer code reading `data.charCountry` shows nothing for new nodes.
 
 **Why it happens:**
-HMR replaces the module's exported value but cannot retroactively update the i18next resource bundle that was loaded at `i18n.init()` time.
+Reusing the same key name for semantically different data is tempting to avoid migration cost. But the old value is an enum key (`"vn"`) while the new value is a display label (`"Vietnamese"`). The lookup functions (`localizedCountryLabel`, `localizedVibeLabel`) do a switch/find on the old enum keys — they will silently fall through for free-text values.
 
 **How to avoid:**
-Add an explicit HMR accept handler in the i18n setup file:
-```ts
-// At the bottom of frontend/src/i18n.ts:
-if (import.meta.hot) {
-  import.meta.hot.accept(["./locales/en.json", "./locales/tr.json"], ([newEn, newTr]) => {
-    if (newEn) i18n.addResourceBundle("en", "translation", newEn.default, true, true);
-    if (newTr) i18n.addResourceBundle("tr", "translation", newTr.default, true, true);
-  });
-}
-```
-
-This means: when Vite detects a change to either locale JSON, call `addResourceBundle` with the new content, replacing the old. The `true, true` flags mean "deep merge" and "overwrite existing keys".
-
-Without this, the workflow during translation is: edit JSON → no visible change → manually reload page → repeat. Adds minutes of friction per translation session.
+Introduce new field names for the new structured model: `charEthnicity` (free text or new enum), `charVibeId` (new wizard key), so old and new nodes are distinguishable by key presence. The ResultViewer rendering block must be updated to handle both: `data.charCountry` (old enum → label via shim) and `data.charEthnicity` (new free text → display directly). TypeScript's `FlowboardNodeData` interface must be updated with both optional fields and the old fields deprecated-but-not-deleted until after migration.
 
 **Warning signs:**
-Edit a value in `tr.json`, save, and observe the running app. If the change is not reflected immediately (without a page reload), HMR is not wired up.
+- `tsc -b --noEmit` passes but `localizedCountryLabel(data.charCountry)` returns unexpected values.
+- New wizard saves `charCountry: "Vietnamese"` and ResultViewer shows "Vietnamese" as raw text instead of a localized label (because the switch fell through to the `default: return CHARACTER_COUNTRIES.find(...)?.label` branch, which is now undefined).
+- After migration, some nodes show country pills and some do not, with no console errors.
 
-**Phase to address:** Setup — add the HMR handler when creating the i18n setup file.
+**Phase to address:** Data-model phase (key naming contract), migration phase (backfill old keys).
 
 ---
 
-### Pitfall 8: Turkish dotted/dotless-i bug — `.toLowerCase()` and `.toUpperCase()` on user input
+### Pitfall 8: i18n Parity Break — en.json Gets Wizard Keys Without tr.json Update
 
 **What goes wrong:**
-Turkish has four i-variants: `i` (dotless lowercase), `İ` (dotted uppercase), `ı` (dotless uppercase), `I` (dotted lowercase — no, wait: `I` is dotted uppercase in English but **dotless uppercase** in Turkish). The critical case: `"I".toLowerCase()` returns `"i"` in en-US locale but `"ı"` (dotless i) in tr-TR locale. Similarly, `"i".toUpperCase()` returns `"I"` in en-US but `"İ"` in tr-TR.
-
-In Flowboard, any string comparison that folds case before comparing will produce wrong results when the app is running in Turkish locale:
-- `humanizeBackendError` in `api/client.ts:19`: `const t = token.toLowerCase()` — if the backend ever sends a token containing `"I"`, this comparison silently fails in Turkish locale.
-- `activity-meta.ts:49-63`: `relativeTime` does not call `toLowerCase()` but any future search/filter feature on activity or reference labels will.
+The developer adds wizard keys to `en.json` (e.g. `"wizard.step.identity"`, `"wizard.field.ethnicity_placeholder"`, `"wizard.step.appearance"`) during the wizard UI phase and commits. `scripts/check-i18n-parity.mjs` exits code 1 on the next run because `tr.json` is missing these keys. If the parity script is not in the CI gate, it may not be discovered until the Turkish translation pass — at which point the wizard UI has already shipped with English fallback leaking through in Turkish mode.
 
 **Why it happens:**
-JavaScript's `String.prototype.toLowerCase()` is locale-sensitive when called without a locale argument — it uses the system/browser locale. In a Turkish browser, the default locale is `tr-TR`. Code written assuming en-US semantics will produce wrong results.
+The wizard has the largest single-PR key addition since v1.0 (estimated 40-60 new keys for step labels, field labels, placeholders, validation messages, review section headers, library CTA). Adding them to one file at a time is the natural edit flow.
 
 **How to avoid:**
-Never call bare `.toLowerCase()` or `.toUpperCase()` for comparison or matching logic. Instead:
-```ts
-// Wrong — locale-sensitive:
-const t = token.toLowerCase();
-
-// Correct — explicitly locale-independent:
-const t = token.toLocaleLowerCase("en-US");  // for backend token matching
-// or use locale-aware comparison for user-visible search:
-const match = haystack.localeCompare(needle, "tr-TR", { sensitivity: "base" }) === 0;
-```
-
-For `humanizeBackendError`, the tokens are backend-controlled ASCII strings — use `toLocaleLowerCase("en-US")` to lock the comparison to ASCII semantics regardless of browser locale.
-
-For any future search/filter over user labels (ref names, node titles), use `localeCompare` with the active locale.
+Run `node scripts/check-i18n-parity.mjs` as part of the commit checklist (or add it to the `npm run lint` command). Always add a key to BOTH `en.json` and `tr.json` in the same commit, even if the Turkish value is an empty string (the script warns on empty values but does not fail). The fastest path: draft the TR values as machine-translated placeholders with a `TODO: native review` comment in the key value, so the file stays at parity. Never commit en.json edits without touching tr.json.
 
 **Warning signs:**
-Set the browser language to Turkish (`tr-TR`). Type an uppercase `I` into any search or filter field, or trigger a `PUBLIC_ERROR_UNSAFE_GENERATION` error (which contains uppercase letters). If the error is not matched by `humanizeBackendError`, the dotted-i bug is active.
+- `node scripts/check-i18n-parity.mjs` exits non-zero after the wizard PR.
+- Turkish UI shows English strings in wizard steps (fallback leaking).
+- `tsc -b --noEmit` passes (TypeScript only validates key existence in `en.json` via `CustomTypeOptions`), so there is no static signal of the TR gap.
 
-**Phase to address:** Extraction — audit all `.toLowerCase()` / `.toUpperCase()` calls as part of the string inventory. Fix before Turkish locale is activated.
+**Phase to address:** i18n phase (but the wizard UI phase must enforce this at every commit, not only in a dedicated i18n phase).
 
 ---
 
-### Pitfall 9: Persisted locale in Zustand — race condition on rehydration
+### Pitfall 9: Dynamic-Key Anti-Pattern in Wizard Step Labels
 
 **What goes wrong:**
-The existing `settings.ts` store manually reads from `localStorage` at module load time (the `loadPersisted()` / `persist()` pattern). If the locale preference is added to this same store (or to its own store with the same pattern), the race condition is:
-
-1. `i18n.ts` initialises with browser-detected locale (e.g. `"en"` from `navigator.language`).
-2. React mounts, `App.tsx` renders — i18n is already active.
-3. `useSettingsStore` rehydrates — locale is `"tr"` from localStorage.
-4. Something calls `i18n.changeLanguage("tr")` in response to the store hydration.
-5. The whole app re-renders with Turkish strings — visible flash, and any string that was rendered in step 2 before the language change is now stale.
+The wizard has step labels (e.g. "Identity", "Appearance", "Styling", "Expression/Lighting", "Review"). A developer translates these with dynamic key construction: `t(\`wizard.step.${currentStep}\`)`. The `i18n.ts` file already documents this prohibition: "Never use dynamic key construction: `t(\`prefix.\${variable}\`)` breaks static analysis." TypeScript's `CustomTypeOptions` declaration merging will not catch this — it only type-checks string literals passed to `t()`. The dynamic key silently returns the key name itself (e.g. "wizard.step.1") when the variable does not correspond to an existing key.
 
 **Why it happens:**
-The settings store's `loadPersisted()` is synchronous but the i18n initialization is separate. When the stored locale drives the i18n provider's language, the two must initialize from the same source in the same tick.
+A 5-step wizard with sequential labels is the textbook use case where dynamic keys feel elegant. The existing v1.0 retrospective flagged this exact pattern (v1.0 BUGS reference: "dynamic-key anti-pattern flagged in v1.0 retrospective").
 
 **How to avoid:**
-Read the persisted locale ONCE, BEFORE `i18n.init()`, and pass it directly to `initI18n`:
-```ts
-// In i18n.ts (loaded before React renders):
-function detectLocale(): string {
-  try {
-    const raw = localStorage.getItem("flowboard.settings.v1");
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.locale === "tr") return "tr";
-    }
-  } catch { /* ignore */ }
-  // Browser language detection fallback:
-  const nav = navigator.language ?? navigator.languages?.[0] ?? "en";
-  return nav.startsWith("tr") ? "tr" : "en";
-}
-
-i18n.init({ lng: detectLocale(), ... });
-```
-
-The Zustand settings store's `setLocale` action then calls `i18n.changeLanguage(newLocale)` after the initial mount — this is a user-initiated change, not rehydration, so the flash is expected and acceptable.
-
-Do NOT make the Zustand store drive the i18n provider's `lng` prop via a React effect — that is the race condition pattern.
+Enumerate all step label keys explicitly: `const STEP_LABELS: Record<WizardStep, string> = { identity: t("wizard.step.identity"), appearance: t("wizard.step.appearance"), ... }`. This looks repetitive but is the only pattern that TypeScript can statically verify and that survives key renames. Map the wizard step enum to explicit `t()` calls at render time, not in a loop with interpolation.
 
 **Warning signs:**
-On a hard page reload with locale set to Turkish in localStorage, the app briefly shows English before switching to Turkish. If you see this, the initialization order is wrong.
+- `t("wizard.step.identity")` works but `t(\`wizard.step.\${step}\`)` returns the key string itself for any step.
+- `tsc -b --noEmit` passes (dynamic keys are not type-checked).
+- Adding a new step requires no update to the translation files because the key is never statically referenced.
 
-**Phase to address:** Setup — establish the `detectLocale()` → `i18n.init()` initialization chain before writing any language-switching UI.
+**Phase to address:** Wizard UI phase.
 
 ---
 
-### Pitfall 10: `<html lang>` staleness and screen reader breakage
+### Pitfall 10: Saveable Library Name Collision with `Reference` Row `label` Field
 
 **What goes wrong:**
-`frontend/index.html` has `<html lang="en">` hardcoded. When the app switches to Turkish, the `lang` attribute stays as `"en"`. Screen readers use the `lang` attribute to determine which TTS voice engine and phoneme rules to use — a Turkish-speaking user with a screen reader hears their own language spoken with English phoneme rules, which is often unintelligible for Turkish text.
-
-SEO is irrelevant for a local app, but `lang` is a WCAG 2.1 Level A criterion (1.3.3 — "Language of Page"). Since Flowboard already has `role="alert"` and `aria-label` attributes, the team cares about accessibility — this gap is inconsistent with that intent.
+The "saveable character library" stores named character configurations. If implemented by creating `Reference` rows (the existing cross-board library) with `kind: "character"`, then the `label` field on `Reference` (client.ts:730-748) is the only name field. The existing "Save to Library" from `NodeCard.tsx` and `ResultViewer.tsx` already creates `Reference` rows with `kind: "character"` and labels like `aiBrief.slice(0, 80)` or `#shortId`. A saved character configuration with a user-chosen name collides with this auto-label behavior. The `listReferences` API has no way to distinguish "auto-saved media snapshot" from "user-named character preset."
 
 **Why it happens:**
-`index.html` is a static file. The developer adds translations, everything looks right, but the `lang` attribute is not part of the JSX render tree and is not updated by react-i18next automatically.
+The Reference table is the obvious storage target for "saved characters" because it already exists and `kind: "character"` is already defined. But its semantic is "a saved media snapshot" (it requires a `media_id`), not "a saved character configuration" (which might not yet have generated media). The library use case requires storing the wizard field values, not just a `media_id`.
 
 **How to avoid:**
-Add a `useEffect` that updates `document.documentElement.lang` whenever the locale changes:
-```ts
-// In App.tsx or a dedicated useLocaleEffect hook:
-import { useTranslation } from "react-i18next";
-
-export function App() {
-  const { i18n } = useTranslation();
-  useEffect(() => {
-    document.documentElement.lang = i18n.language;
-  }, [i18n.language]);
-  // ...
-}
-```
-
-This is 3 lines of code and fully prevents the issue. Also update `document.title` here if it ever becomes locale-specific (currently static `"Flowboard"` in `index.html` — acceptable to leave as-is for v1 since the app is single-tab).
+Either: (a) add a new `tags` entry convention (e.g. `tags: ["__char_preset__"]`) to distinguish preset rows from snapshot rows — fragile and semantic pollution; (b) add a new `char_config: Record<string, unknown>` JSON column to the `Reference` table — requires backend Pydantic/DB changes (out of scope per CLAUDE.md); (c) use `localStorage` for the character library with a versioned key (`flowboard.char_library.v1`) — keeps it frontend-only, no schema changes needed, and the library is local to the user anyway given the app is single-user local-only. The LocalStorage path avoids all backend scope creep and matches the app's local-first character.
 
 **Warning signs:**
-Switch to Turkish in the app, then inspect `<html lang="...">` in DevTools. If it still says `"en"`, the effect is missing.
+- After saving a named character preset, `listReferences({ kind: "character" })` returns a mix of media snapshots and character configs with no distinguishing marker.
+- Deleting a "character preset" from the library inadvertently deletes the `Reference` row that powers downstream cross-board use of that character image.
+- The `ReferencesPanel` shows character configuration presets alongside media thumbnails with no visual distinction.
 
-**Phase to address:** Polish — add after translations are wired but before verification.
+**Phase to address:** Library phase.
 
 ---
 
-### Pitfall 11: `formatRelativeTime` hardcoded in Vietnamese — must be replaced, not translated
+### Pitfall 11: LocalStorage Quota and StrictMode Double-Mount
 
 **What goes wrong:**
-`ResultViewer.tsx:60-73` contains `formatRelativeTime()` which produces strings hardcoded in Vietnamese: `"vừa xong"`, `"phút trước"`, `"giờ trước"`, `"ngày trước"`, and calls `new Date(t).toLocaleDateString("vi-VN")`. This function must be completely replaced as part of i18n, not just translated as a string.
-
-The `activity-meta.ts:49-63` `relativeTime()` function produces English: `"just now"`, `"${sec}s ago"`, `"${min}m ago"`, `"${hr}h ago"`, `"${day}d ago"`. Same problem, different language.
-
-Both functions have the same architecture: they build the string by concatenating a number with a translated suffix — which breaks for languages where word order or agreement rules change the suffix position.
+The character library stores named configurations in `localStorage`. In React 18 StrictMode (which this app uses — `main.tsx:8`), effects run twice in development. A naive `useEffect(() => { localStorage.setItem(key, serialize(library)) }, [library])` fires twice on every state change in dev — harmless for reads but potentially confusing during debugging. The real risk: if a user builds up a large library of character configurations with long wizard fields (e.g. the full `tokens[]` arrays plus extras), the serialized JSON can approach the 5 MB localStorage quota. A quota-exceeded exception silently fails if not caught, losing the save without user feedback.
 
 **Why it happens:**
-These were written for a specific locale before i18n was considered. The string construction pattern assumes the suffix always follows the number.
+localStorage is the natural frontend-only persistence mechanism and the existing `i18n.ts` already uses it for locale state. The StrictMode double-mount is well-known but the specific risk is the interaction with a write-heavy effect. The quota risk is underestimated because individual character configs seem small, but accumulating hundreds of them with full prompt token arrays can grow.
 
 **How to avoid:**
-Use i18next's interpolation for all relative time strings. Define them in the locale JSON as complete phrases with `{{count}}` placeholders:
-```json
-{
-  "time.justNow": "just now",
-  "time.secondsAgo": "{{count}}s ago",
-  "time.minutesAgo": "{{count}}m ago",
-  "time.hoursAgo": "{{count}}h ago",
-  "time.daysAgo": "{{count}}d ago"
-}
-```
-Turkish equivalents keep the same `{{count}}` pattern (Turkish sentence structure for these phrases is also number-first), so interpolation order works. But defining them as full i18n keys ensures future locales with different order can override the entire phrase.
-
-Replace `toLocaleDateString("vi-VN")` with `new Date(t).toLocaleDateString(i18n.language)` — pass the active locale dynamically.
+Wrap every `localStorage.setItem` in a try/catch that routes to the generation store's `error` slot (same pattern used throughout the codebase). Cap the library at a reasonable maximum (e.g. 50 presets) with a warning toast when approaching the limit. For the StrictMode double-mount: the effect write is idempotent (writing the same value twice is harmless) so no special handling needed, but avoid effects that DELETE and RE-CREATE during the double-invoke (e.g. don't clear the key then set it in two separate effects — a crash between the two steps leaves the library empty).
 
 **Warning signs:**
-In Turkish locale, `ResultViewer` still shows Vietnamese relative time text. This is a regression, not a missing translation — the Vietnamese strings are hardcoded and will always render regardless of the active locale until the function is rewritten.
+- A `QuotaExceededError` appears in the browser console but no user-facing error is shown.
+- Library saves silently fail after reaching ~50 configurations.
+- In development, library writes appear to fire twice in the React DevTools profiler.
 
-**Phase to address:** Extraction — `formatRelativeTime` must be rewritten (not just wrapped) during string extraction; it cannot be deferred to polish.
+**Phase to address:** Library phase.
 
 ---
 
-### Pitfall 12: Plurals and `{{count}}` interpolation — Turkish is simple but set it up correctly anyway
+### Pitfall 12: Variant-Edge Pinning Still Resolves Old `charVibe` Key After Wizard
 
 **What goes wrong:**
-Turkish uses a single plural form (no special plural for 1 vs many — same as base form). This makes Turkish plurals trivial compared to languages like Russian (3 forms) or Arabic (6 forms). However, if the i18n setup defines `pluralResolver` incorrectly or omits the `_other` / `_one` suffix convention, the count interpolation will output the wrong key.
-
-More concretely: i18next's default plural suffix for `tr` is `_other` for all counts (since Turkish has one form). If a key is defined as `"filesUploaded": "{{count}} dosya yüklendi"` without a `_one` variant, i18next will look for `filesUploaded_other` and fall back to the base key. This only fails silently if your JSON structure is misaligned.
-
-The harder problem: variable order in sentences can differ by language. `"${count} variants generated"` — in Turkish this is `"{{count}} varyant oluşturuldu"` (same order). But a community locale in Arabic would need `"{{count}} متغيرات"` vs `"متغير {{count}}"` depending on count parity. Designing keys as `t("variantsGenerated", { count })` with full-sentence values in each locale JSON handles this correctly. Building keys as `count + t("variants") + t("generated")` does not.
+Edge pinning (`source_variant_idx` on `EdgeDTO`) binds a specific variant of the upstream character node to the downstream image/video gen. The `patchEdge` call stores a numeric variant index. This is unaffected by the wizard migration. However: `ResultViewer.tsx:656-670` reads `data.charVibe` from the character node to render a vibe pill. After the wizard migration renames this to `charVibeId` (or replaces it entirely), the ResultViewer code that previously looked up `localizedVibeLabel(data.charVibe)` now reads `undefined`. The pill disappears. This is purely a display regression — the variant edge pinning and the generation dispatch are not affected.
 
 **Why it happens:**
-Developers split translation strings at word boundaries to reduce key count — `t("variants")` + `t("generated")` seems DRY. It breaks for any language with agreement rules.
+The ResultViewer import `import { localizedCountryLabel, localizedVibeLabel } from "../constants/character"` is a direct coupling that breaks when the constants file is deleted or those functions are removed. The type `FlowboardNodeData` marks these fields as `charCountry?: string; charVibe?: string` — removing them from the interface without updating ResultViewer causes a TypeScript error, but only if the functions that use them are also updated in the same PR.
 
 **How to avoid:**
-Always define count-bearing translations as complete sentences with `{{count}}`:
-```json
-// en.json:
-{ "generation.variantsGenerated": "{{count}} variant generated", "generation.variantsGenerated_other": "{{count}} variants generated" }
-// tr.json:
-{ "generation.variantsGenerated": "{{count}} varyant oluşturuldu", "generation.variantsGenerated_other": "{{count}} varyant oluşturuldu" }
-```
-Because Turkish has one plural form, `en.json` and `tr.json` both supply `_other` (and optionally `_one` for 1-count English) — the keys just resolve to the same value in Turkish.
+Before deleting any function from `constants/character.ts`, run `grep -r "localizedCountryLabel\|localizedVibeLabel\|charCountry\|charVibe" frontend/src/` to enumerate ALL call sites. Update every call site in the same commit that removes the function. The migration phase checklist must include this grep as a verification step.
 
-For v1 (English + Turkish only), pluralization complexity is minimal. The risk is in the key design: if keys are designed without sentence-level keys, adding a language like Russian later requires restructuring the key set.
+**Warning signs:**
+- `tsc -b --noEmit` reports errors on `data.charVibe` or `localizedVibeLabel` after the constants file is touched.
+- In a build that compiles cleanly, ResultViewer shows no country/vibe pills for any character node (both old and new).
+- `grep` in the codebase finds `charVibe` usage in ResultViewer that was not updated.
 
-**Phase to address:** Extraction — decide on the key naming convention (sentence-level with `{{count}}`) before writing any Turkish strings.
+**Phase to address:** Migration phase.
 
 ---
 
-### Pitfall 13: JSX inside translation strings — the community-contributor trap
+### Pitfall 13: Turkish Dotted-I Regression in New Wizard String Processing
 
 **What goes wrong:**
-When a translation key's value contains React markup — e.g. a link, a `<strong>` tag, or a `<code>` block — the naive approach is:
-```ts
-// Tempting but wrong — translator sees raw HTML:
-t("errors.openFlow") // returns "Open <a href='...'>Flow</a> once"
-```
-Non-developer community translators (the open-source audience this project courts) see `<a href='...'>`, misplace or delete the tag, and break the rendered UI or inject XSS.
-
-Flowboard does not currently have any JSX-embedded translation strings — but `humanizeBackendError` produces multi-sentence text that contains a URL inline: `"Open https://labs.google/fx/tools/flow in a tab"`. If this URL is made into a clickable link during i18n (a natural UX improvement), the temptation to embed JSX in the key value is high.
+v1.0 fixed BUGS-02: `humanizeBackendError` was calling `.toLowerCase()` (system locale) instead of `.toLocaleLowerCase("en-US")` which caused Turkish dotted-I transformation (`"i"` → `"İ"` uppercase, `"I"` lowercase → `"ı"`) to break the error token matching. The same bug can re-enter in the wizard's new string handling code if any utility performs case-insensitive comparison or normalization of wizard field values using the system locale instead of a fixed locale.
 
 **Why it happens:**
-react-i18next provides `Trans` component for this use case, but its API is unfamiliar. The simpler wrong path is to embed HTML.
+JavaScript's `String.prototype.toLowerCase()` uses the runtime locale, which on a Turkish OS (TR-TR locale) maps `"I" → "ı"` and `"İ" → "i"` instead of the ASCII-safe behavior. New string utilities written for the wizard (e.g. normalizing ethnicity free-text input, validating vibe keys, searching the character library) may call `.toLowerCase()` without specifying `"en-US"`.
 
 **How to avoid:**
-Keep all translation strings HTML-free. When rich markup is needed:
-1. Split the string into parts around the markup and use the `Trans` component:
-```tsx
-<Trans i18nKey="errors.openFlow">
-  Open <a href={FLOW_URL} target="_blank">Flow</a> once and reload.
-</Trans>
-```
-2. Define the key value with placeholders that match the component children index:
-```json
-{ "errors.openFlow": "Open <1>Flow</1> once and reload." }
-```
-The number-tagged slots (`<1>`) are safe for translators — they know not to change numbers, only surrounding text.
-
-For this codebase, the safest rule for v1: zero HTML in translation strings. The URL in `humanizeBackendError` should remain as a plain-text string in the locale JSON (`"url.flow": "https://labs.google/fx/tools/flow"`) interpolated into a sentence, not as a hyperlink inside the translation value.
+Any utility that performs case-insensitive comparison of ASCII identifiers (keys, enum values, search matching) must use `.toLocaleLowerCase("en-US")` or `.toLowerCase()` only on values that are guaranteed to be ASCII-safe. The locale JSON keys themselves are lowercase ASCII so `t()` lookups are safe. The risk is in new helper functions that normalize user input. Code review should grep for `.toLowerCase()` in new files added by the wizard PR.
 
 **Warning signs:**
-Any translation value in the JSON files that contains `<` or `>` is a signal that the `Trans` component should be used instead — and that the translator experience is degraded.
+- On a Turkish OS locale, ethnicity field search returns no results for queries containing "I" because the normalized form mismatches.
+- A wizard field validation that checks `value.toLowerCase() === "clean"` fails on Turkish OS when the stored value is `"CLEAN"`.
+- `node scripts/check-i18n-parity.mjs` passes but the Turkish UI has a subtle mismatch in character library search at runtime.
 
-**Phase to address:** Extraction — establish the no-HTML-in-values rule when designing the key schema.
+**Phase to address:** i18n phase; also reviewed in wizard UI phase during code review.
 
 ---
 
-### Pitfall 14: Baking in LTR assumptions — prophylactic CSS cost is near-zero
+### Pitfall 14: `buildCharacterPrompt` Receiving Partial Fields Mid-Wizard
 
 **What goes wrong:**
-RTL support is explicitly out of scope for v1. However, CSS written during this milestone will be inherited by future contributors who add Arabic, Hebrew, or Farsi. The specific patterns that create debt:
-
-- `margin-left` / `margin-right` — directional, do not flip in RTL without CSS overrides
-- `padding-left` / `padding-right` — same
-- `left: 0` / `right: 0` positioning — same
-- `text-align: left` — same
-- `border-left` / `border-right` on status strips — same
-
-Flowboard's `status-strip` and node card layout use directional CSS extensively. The `NodeCard.tsx` `StatusStrip` component anchors the strip on the left side of the card.
+The wizard persists to `node.data` incrementally: the user might reach step 3 (outfit/hair) and then click "Generate" from the NodeCard's `▶` button without completing steps 4-5. This bypasses the wizard's review step and calls `handleGenerate` which opens `GenerationDialog` which calls the prompt assembler with whatever is currently on `node.data`. If the assembler reads `data.charExpression` (step 4 field) and it is `undefined`, a naive `[...vibeTokens, data.charExpression]` produces `"..., undefined"` in the comma-joined prompt string.
 
 **Why it happens:**
-English is LTR. Developers write `margin-left` naturally. CSS logical properties are available since 2020 across all major browsers but adoption is low because there is no lint rule enforcing them.
+The existing assembler (`GenerationDialog.tsx:46-74`) reads from local dialog state, not from `node.data`, so partial persistence is not an issue today. If the wizard refactor moves field persistence to happen per-step (write to node.data as the user navigates steps), then the prompt assembler must handle missing fields gracefully because the NodeCard's Generate button bypasses the wizard flow entirely.
 
 **How to avoid:**
-During the i18n milestone, when touching any CSS file, replace directional properties with logical equivalents:
-| Directional | Logical equivalent |
-|-------------|-------------------|
-| `margin-left` | `margin-inline-start` |
-| `margin-right` | `margin-inline-end` |
-| `padding-left` | `padding-inline-start` |
-| `padding-right` | `padding-inline-end` |
-| `left` (in positioned elements) | `inset-inline-start` |
-| `right` | `inset-inline-end` |
-| `text-align: left` | `text-align: start` |
-| `border-left` | `border-inline-start` |
-
-Do NOT do a wholesale CSS replacement — that is a refactor, not an i18n task. Only replace properties in CSS rules that are being touched anyway during the i18n milestone. New CSS written in this milestone should use logical properties exclusively.
+The prompt assembler must filter `null` / `undefined` / empty-string values before joining. The existing assembler already does `.filter(Boolean).join(", ")` for the main token array — this pattern must be applied to every new field insertion point. Additionally, the wizard should NOT persist to `node.data` on every step navigation — it should persist only on final submit (or explicitly on "Save Draft" if that feature is desired). Keep wizard-in-progress state in the store or local dialog state, not in `node.data`, until the user submits.
 
 **Warning signs:**
-A contributor attempting to add Arabic support files a PR that contains a large `[dir="rtl"] { ... }` override block — this is the symptom of accumulated directional CSS debt.
+- Generated prompt contains the string "undefined" or "null" (visible in ResultViewer's prompt section).
+- `buildCharacterPrompt` returns a prompt with extra commas or "undefined" tokens when called with partial data.
+- Opening the NodeCard's Generate button on a mid-wizard character node dispatches with a malformed prompt.
 
-**Phase to address:** Polish — opportunistically replace directional properties when editing CSS during the translation pass.
+**Phase to address:** Wizard UI phase.
+
+---
+
+### Pitfall 15: Accidental Translation of Data Fields
+
+**What goes wrong:**
+Wizard field values saved to `node.data` (e.g. `charEthnicity: "Vietnamese"`, `charVibe: "Clean Girl"`) are user data, not UI copy. If a developer writes `t("character.vibe.clean")` and stores the RESULT in `node.data.charVibe`, the node becomes locale-specific: a board created in Turkish mode stores `"Temiz Kız"` for the vibe, but the prompt assembler's English lookup for that vibe's tokens fails because the stored value is a Turkish label, not the stable key.
+
+**Why it happens:**
+The localization layer is fresh from v1.0 and developers may conflate "display label" (should be localized, read-only UI) with "data value" (should be a stable key or English token, stored in DB). The existing `character.ts` code explicitly documents this boundary with its `localizedCountryLabel` vs `countryLabel` distinction (the non-localized helper was kept "for backend prompt-building where locale-specific UI text must NOT be injected").
+
+**How to avoid:**
+Store only stable keys or English prose in `node.data` — never translated strings. The prompt assembler must always receive either: (a) a stable enum key (`"clean"`, `"vn"`) that it looks up in an English-keyed map, or (b) free-text English prose that users typed themselves. Display labels are derived at render time from the stable key via `localizedVibeLabel(data.charVibe)` — they are never persisted. Document this contract explicitly at the top of the new wizard character constants module.
+
+**Warning signs:**
+- A character node saved in Turkish mode generates a different prompt than an identical character node saved in English mode.
+- `node.data.charVibe` contains `"Temiz Kız"` instead of `"clean"` after dispatch.
+- The prompt assembler returns a fallback/empty prompt because the stored vibe key does not match any entry in the token lookup map.
+
+**Phase to address:** Data-model phase (establish the key vs. label contract before any wizard UI is built).
 
 ---
 
@@ -526,12 +312,11 @@ A contributor attempting to add Arabic support files a PR that contains a large 
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Wrapping all visible strings with `t()` in one pass without auditing non-JSX locations | Fast extraction | Toaster errors, aria-labels, activity labels stay English forever — discovered at QA not during extraction | Never — the non-JSX audit takes 30 min and prevents a full re-extraction pass |
-| Using `i18next-http-backend` to load locale JSON at runtime | Lazy loading, smaller initial bundle | Render flicker on every load; no benefit for a local single-user app where bundle size is not constrained | Never for this project (see PROJECT.md: "Build size matters less than maintainability") |
-| Dynamic key construction (`t(\`error.${code}\`)`) | DRY, fewer lines | Static analysis blind spot; Turkish JSON can have zero missing keys but 30 untranslated paths | Acceptable only for truly open-ended key spaces (not the case here) |
-| Defining locale in Zustand store driven by a React effect that calls `i18n.changeLanguage` | Looks clean | Race condition on rehydration — first render is always English; visible flash | Never for initial locale; acceptable for user-initiated language switches |
-| Leaving `activity-meta.ts` strings untranslated for v1 | Less work now | Activity feed stays English in Turkish locale — inconsistent experience | Acceptable only if activity feed is considered a "power user" surface and documented as known gap |
-| Skipping `<html lang>` update | Saves 3 lines | WCAG 2.1 Level A failure; screen reader mispronounces Turkish | Never — 3-line fix |
+| Reuse `charCountry` key for free-text ethnicity | No backfill needed | Old enum values mixed with new free-text; lookup functions return wrong type | Never — use a new key name |
+| Skip TR translations for new wizard keys | Faster wizard PR | Turkish UI falls back to English strings; parity CI fails | Only as empty-string placeholders in the same commit |
+| Persist wizard fields per-step to `node.data` | "Auto-save" UX feel | Prompt assembler receives partial fields; mid-wizard state visible in ResultViewer | Never — persist only on submit |
+| Keep `CHARACTER_COUNTRIES` and `CHARACTER_VIBES` in the constants file "just for the label helpers" while removing from the UI | No migration needed | Dead code accumulates; new contributors are confused about what is still in use | Acceptable as a transitional shim for one milestone then must be deleted |
+| Build the library on top of `Reference` rows | No new backend code | Semantic collision between media snapshots and character presets; `ReferencesPanel` shows mixed content | Never — use localStorage for the pure-frontend preset store |
 
 ---
 
@@ -539,10 +324,11 @@ A contributor attempting to add Arabic support files a PR that contains a large 
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| react-i18next + Vite | Using `i18next-http-backend` (loads locale JSON via fetch) — adds flicker and requires a Vite plugin or public folder configuration | Bundle locales as static imports; use `import.meta.hot.accept` for HMR during development |
-| react-i18next + TypeScript strict | Not generating typed keys — `t("nonexistent.key")` compiles fine and silently shows the key string at runtime | Use `i18next-resources-to-backend` or generate a `d.ts` from locale JSON using `i18next-typescript` or equivalent; OR enforce with TS path aliases |
-| react-i18next + Zustand (no `zustand/middleware` persist) | Storing locale in a Zustand store that is initialized after `i18n.init()` — causes rehydration flash | Read locale from localStorage synchronously in `i18n.ts` before React mounts; only use Zustand for user-initiated language changes |
-| `humanizeBackendError` + i18n | Calling `useTranslation()` in a plain TS utility function — throws hooks violation | Import and call `i18n.t()` directly from the i18next singleton instance |
+| `patchNode` shallow-merge | Sending full `data` blob from wizard submit | Send only the wizard field delta; never reconstruct the full data object |
+| `localizedVibeLabel` / `localizedCountryLabel` | Deleting functions before updating all call sites | Grep all call sites first; update ResultViewer and any other reader in the same PR that removes the function |
+| `check-i18n-parity.mjs` | Adding en.json keys without tr.json keys | Always add both files in the same commit; run the parity script locally before push |
+| `buildCharacterPrompt` assembler | Inserting new fields with `.join(", ")` without null-filtering | Chain `.filter(Boolean)` before `.join` on every new token array |
+| `node.data.charVibe` / `charCountry` reads in ResultViewer | Renaming the data field without updating the reader | Update ResultViewer in the same PR as the data-model field rename |
 
 ---
 
@@ -550,9 +336,9 @@ A contributor attempting to add Arabic support files a PR that contains a large 
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Re-renders from `useTranslation()` on every `i18n.changeLanguage` | All components re-render simultaneously on language switch | This is expected and acceptable — language switch is infrequent. Use `useMemo` for expensive computations that depend on translated strings if needed. | Not a real problem for this app size |
-| `NodeCard` re-renders because translation context changes | Canvas lag when language is switched | `React.memo` on `NodeCard` (already identified as a missing optimization in CONCERNS.md) — separate concern, not introduced by i18n | Only with 50+ nodes on canvas AND without memoization |
-| Bundling both locale JSONs in main chunk | Slightly larger initial JS | Acceptable for this app (see PROJECT.md constraint on bundle size) | Not a problem for local app |
+| Re-rendering the entire wizard on every field change | Perceptible lag navigating between steps on low-end hardware | Keep wizard step state in a single store slice; use shallow equality selectors | Not a concern for <10 fields per step; only if the wizard triggers Board re-render |
+| LocalStorage read on every render in the library panel | Small but cumulative perf hit if the library list is read inside a Zustand selector | Read localStorage once on mount, cache in Zustand store; subscribe to the store not localStorage directly | Unlikely to be noticed in this single-user app |
+| `collectUpstreamRefMediaIds` scans entire edge list per dispatch | Already present in v1.0; not made worse by the wizard | No action needed | Only at scale (thousands of nodes); irrelevant for local single-user |
 
 ---
 
@@ -560,28 +346,24 @@ A contributor attempting to add Arabic support files a PR that contains a large 
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Language switcher in Settings panel requires scroll to find | Turkish-speaking users who haven't yet found Settings stay in English | Place the language picker as the first item in SettingsPanel, above model preferences |
-| No persisted locale → reverts to English on reload | User re-sets language on every session | Persist locale in `localStorage` under the existing `flowboard.settings.v1` key (or a sibling key) — read it synchronously in `i18n.ts` at init time |
-| Browser auto-detect resolves `tr-TR` but i18n config only handles `"tr"` | Language detection fails silently, app loads in English | In `detectLocale()`, normalize `"tr-TR"` → `"tr"` before matching against configured locales |
-| Error messages from server (`humanizeBackendError`) shown in English even in Turkish locale | Confusing: UI is Turkish but errors are English | All `humanizeBackendError` branches must use `i18n.t()` — see Pitfall 5 |
-| `formatRelativeTime` in ResultViewer shows Vietnamese strings | Existing users see Vietnamese text regardless of locale | Rewrite using i18n keys — see Pitfall 11 |
+| Wizard requires completing all 5 steps to generate | User abandons wizard; falls back to free-text | Allow submit from any step after step 1; show a "Review" summary without forcing step 5 navigation |
+| "Save to Library" overwrites existing preset with same name silently | User loses customized preset | Check for name collision before save; surface a "Replace existing preset named X?" confirmation |
+| Wizard does not show a preview of the assembled prompt | User submits without knowing what will be dispatched | Add a collapsible "Preview prompt" section on the review step showing the joined token string |
+| Canceling the wizard mid-flow with partial field fills | User loses all progress on close | Prompt "Keep draft?" on ESC/backdrop click; restore draft on reopen |
+| Character library shows raw key values (`"vn"`, `"clean"`) in preset names | Confusing to users | Always derive display labels from keys at render time; never store translated labels |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **aria-labels translated:** Open DevTools → Accessibility tab on NodeCard. All `aria-label` values display Turkish when locale is `tr`. Check `NodeCard.tsx` (Replace character image, Save to library), `Toaster.tsx` (Dismiss error), `GenerationDialog.tsx` (InfoTip aria-label).
-- [ ] **Store error strings translated:** Trigger a dispatch with no project (delete project from DB manually), then trigger the paygate-unknown error. Both Toaster messages appear in Turkish.
-- [ ] **Activity feed labels translated:** Open the activity feed, run a generation. The type label ("Generate image") and status label ("running", "done") appear in Turkish.
-- [ ] **humanizeBackendError translated:** Cause a `captcha_failed` error (disconnect the extension). The Toaster message appears in Turkish.
-- [ ] **formatRelativeTime replaced:** ResultViewer shows relative time in Turkish format (e.g., "5 dakika önce"), NOT Vietnamese.
-- [ ] **`<html lang>` dynamic:** Switch to Turkish. Inspect `<html>` in DevTools. `lang` attribute reads `"tr"`.
-- [ ] **No user data translated:** Board with Turkish node title ("Ürün çekimi") — switch to English and back. Node title is preserved exactly; it does not transform.
-- [ ] **xyflow node labels not translated:** Nodes on the canvas have their user-authored `data.title` intact in both languages. The `@xyflow/react` internal node labels (none used in this codebase — node type is rendered by NodeCard, not by xyflow's built-in label prop) are not affected.
-- [ ] **Locale persisted across reload:** Set language to Turkish, close tab, reopen — app starts in Turkish without flash.
-- [ ] **HMR works during development:** Add a new key to `tr.json`, save — running app shows the new string without page reload.
-- [ ] **Static analysis covers all keys:** Run i18next-parser or equivalent. Zero new missing-key warnings. No dynamic key constructions in the output.
-- [ ] **No dotted-i regression:** With browser language set to Turkish, trigger a `PUBLIC_ERROR_UNSAFE_GENERATION` error. `humanizeBackendError` correctly matches and returns the translated string (not `null`).
+- [ ] **Preset removal:** Run `grep -r "CHARACTER_COUNTRIES\|CHARACTER_VIBES\|CHARACTER_GENDERS\|charCountry\|charVibe" frontend/src/` — must return zero results outside of the migration shim before the constants file is deleted.
+- [ ] **ResultViewer pills:** Open a v1.0 board (with old `charCountry: "vn"` and `charVibe: "clean"` on nodes) after the migration and verify the pills still render with the correct localized labels.
+- [ ] **Parity CI:** `node scripts/check-i18n-parity.mjs` exits 0 after every wizard-related PR.
+- [ ] **Prompt assembler:** Generated prompt for a fully-filled wizard character does not contain the string "undefined", "null", or double commas.
+- [ ] **Shallow-merge contract:** Open a character node with a generated `mediaId`, open and submit the wizard, verify `node.data.mediaId` is still present after submit.
+- [ ] **Wizard state persistence:** Open wizard on a character node, fill steps 1-3, press ESC, reopen — draft is restored (or at minimum no stale data is written to `node.data`).
+- [ ] **Turkish dotted-I:** Every new string utility that calls `.toLowerCase()` on user input has been audited; any ASCII identifier comparison uses `.toLocaleLowerCase("en-US")`.
+- [ ] **Dynamic key check:** `grep -r "t(\`" frontend/src/` — no dynamic key construction in wizard code.
 
 ---
 
@@ -589,14 +371,12 @@ A contributor attempting to add Arabic support files a PR that contains a large 
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| User data translated (Pitfall 1) | HIGH — existing boards display wrong content | Revert the `t()` call on `data.title`/`data.prompt` etc.; redeploy; boards recover automatically since the data is in the DB unchanged |
-| Missing strings discovered post-launch (Pitfall 2) | LOW | Add keys to locale JSON, redeploy — no code change needed |
-| Render flicker from HTTP backend (Pitfall 6) | MEDIUM | Switch from `i18next-http-backend` to bundled imports; requires rebuild |
-| Dotted-i comparison bug (Pitfall 8) | LOW — targeted fix | Audit and replace bare `.toLowerCase()` with `.toLocaleLowerCase("en-US")` at each comparison site |
-| Dynamic key construction (Pitfall 3) | MEDIUM | Enumerate all possible values, add explicit `t("key.value")` per value, remove dynamic template |
-| Vietnamese strings still visible (Pitfall 11) | MEDIUM | Rewrite `formatRelativeTime` with i18n keys; straightforward but requires testing |
-| `<html lang>` never updated (Pitfall 10) | LOW | Add 3-line `useEffect` in App.tsx |
-| `i18n.changeLanguage` called from Zustand effect causing flash (Pitfall 9) | MEDIUM | Refactor initialization to read locale from localStorage before `i18n.init()` |
+| Wholesale data replace wiped node media | HIGH | Restore from SQLite backup; re-upload media; no automated recovery path |
+| TR parity broken after wizard ship | LOW | Add missing TR keys, run parity script, commit fix |
+| `buildCharacterPrompt` produces malformed output | MEDIUM | Hotfix the assembler; existing generated images are unaffected; only future dispatches produce correct prompts |
+| Library localStorage corrupted or quota-exceeded | LOW | Clear `flowboard.char_library.v1` key; user re-saves presets; no permanent data loss |
+| ResultViewer pills disappear for old boards | LOW | Re-add the label lookup shim or backfill nodes; display-only regression, no generation impact |
+| Turkish dotted-I regression in new code | MEDIUM | Fix the `.toLocaleLowerCase` call; same class as BUGS-02; well-understood fix |
 
 ---
 
@@ -604,36 +384,30 @@ A contributor attempting to add Arabic support files a PR that contains a large 
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Translating user data (`data.title`, `data.prompt`, etc.) | Extraction | Switch to Turkish; check existing board node labels are unchanged |
-| Missing non-JSX strings (aria, store errors, utility functions) | Extraction | English-locale grep audit + Turkish smoke test of every error path |
-| Dynamic key construction | Extraction | Run i18next-parser; confirm zero dynamic-key patterns in output |
-| Layout breakage under longer strings | Polish | Screenshot at 1280×800 in Turkish; check every button, badge, dialog |
-| Headless translation (Zustand/utility) | Setup | `grep -rn "useTranslation" frontend/src/**/*.ts` returns zero results |
-| Initial render flicker | Setup | Hard reload with Turkish in localStorage; observe first paint |
-| Vite HMR for locale JSON | Setup | Edit `tr.json`, save; app updates without page reload |
-| Turkish dotted-i `.toLowerCase()` | Extraction | Browser in Turkish locale; trigger every `humanizeBackendError` branch |
-| Persisted locale race condition | Setup | Hard reload with Turkish stored; no English flash before Turkish |
-| `<html lang>` staleness | Polish | DevTools inspect after language switch |
-| Vietnamese `formatRelativeTime` | Extraction | ResultViewer in Turkish shows Turkish relative time, not Vietnamese |
-| Plurals and interpolation design | Extraction | Define and verify count-bearing keys before writing Turkish strings |
-| JSX-in-translation-strings | Extraction | JSON files contain zero `<` or `>` characters |
-| LTR CSS assumptions | Polish | Opportunistically replace directional properties in touched CSS rules |
+| Wholesale `data` replace | Data-model phase | After wizard submit, `node.data.mediaId` still present |
+| `null` sentinel confusion | Data-model phase | Clear a wizard field, save, reload — field is gone from `node.data` |
+| Shipped board pills disappearing | Migration phase | Open a v1.0 board, verify ResultViewer shows country/vibe pills |
+| Framing anchors lost | Wizard UI phase | Compare prompt string before/after to old `buildCharacterPrompt` output |
+| Wizard state lost on close | Wizard UI phase | ESC and reopen, verify draft or blank-and-intentional behavior |
+| Multi-step validation trap | Wizard UI phase | Submit with optional fields blank — no validation error |
+| Key collision `charCountry` vs free-text | Data-model phase | TypeScript type audit; grep for mixed usages |
+| i18n parity break | i18n phase (enforced at every wizard PR) | `check-i18n-parity.mjs` exits 0 |
+| Dynamic-key anti-pattern | Wizard UI phase | `grep -r "t(\`" frontend/src/` returns no wizard code |
+| Library/Reference semantic collision | Library phase | `listReferences` returns no character presets; library uses separate storage |
+| LocalStorage quota | Library phase | Add 51+ presets, verify error toast fires instead of silent failure |
+| Variant-edge pill regression | Migration phase | After migration, ResultViewer still shows pills for character nodes |
+| Turkish dotted-I in new code | i18n phase | Code review grep for `.toLowerCase()` in new wizard utilities |
+| Partial fields in prompt assembler | Wizard UI phase | Call assembler with `undefined` fields, verify no "undefined" in output |
+| Translating data fields | Data-model phase | Switch to Turkish, save character node, switch to English, verify same prompt |
 
 ---
 
 ## Sources
 
-- Direct codebase audit: `frontend/src/` at v1.2.20 (2026-06-10) — all specific file references above are confirmed against the actual source
-- `frontend/src/components/ResultViewer.tsx:60-73` — Vietnamese-hardcoded `formatRelativeTime` (confirmed present)
-- `frontend/src/api/client.ts:18-56` — `humanizeBackendError` English strings (confirmed present)
-- `frontend/src/canvas/NodeCard.tsx:170,189,192` — untranslated `aria-label` and `title` attributes (confirmed present)
-- `frontend/src/store/generation.ts:170` — store-action error string (confirmed present)
-- `frontend/src/components/activity/activity-meta.ts` — hardcoded label/status strings (confirmed present)
-- react-i18next official documentation — bundled resources pattern and `import.meta.hot.accept` for Vite HMR
-- Turkish locale specification — dotted/dotless-i behaviour in `String.prototype.toLowerCase()` (ECMA-262 §22.1.3.26: locale-sensitive case conversion)
-- i18next TypeScript integration docs — typed key generation approaches
-- CSS Logical Properties specification (W3C CSS Writing Modes Level 3) — browser support table for `margin-inline-start` etc.
+- Live codebase reading: `frontend/src/constants/character.ts`, `frontend/src/components/GenerationDialog.tsx`, `frontend/src/components/ResultViewer.tsx`, `frontend/src/api/client.ts`, `frontend/src/store/board.ts`, `frontend/src/store/generation.ts`, `frontend/src/i18n/i18n.ts`, `scripts/check-i18n-parity.mjs`, `frontend/src/canvas/NodeCard.tsx`
+- `.planning/PROJECT.md` v1.1 milestone spec and v1.0 retrospec
+- `CLAUDE.md` conventions and anti-patterns sections
 
 ---
-*Pitfalls research for: React i18n retrofit on Flowboard frontend (Vite + TS strict + Zustand)*
-*Researched: 2026-06-10*
+*Pitfalls research for: Flowboard v1.1 — Character Creation Rework (wizard + library + preset removal)*
+*Researched: 2026-06-16*
