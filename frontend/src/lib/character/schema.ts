@@ -63,8 +63,12 @@ export const CharacterConfigSchema = z.object({
   charEthnicity: z.string().optional(),      // EthnicityKey or free-text override
   charAge: z.string().optional(),            // AgeKey
 
-  // Appearance
-  charHair: z.string().optional(),           // composite: "long wavy black hair"
+  // Appearance — legacy composite field retained for backward reads;
+  // Phase 6 splits it into charHairColor + charHairStyle below.
+  // Phase 7 (MIGRATE-02) removes charHair after confirming zero writes.
+  charHair: z.string().optional(),           // composite: "long wavy black hair" (legacy)
+  charHairColor: z.string().max(40).optional(), // Phase 6: "black", "blonde", option key or free-text
+  charHairStyle: z.string().max(40).optional(), // Phase 6: "long-wavy", "braids", etc.
   charSkinTone: z.string().optional(),       // free-text: "fair", "tan", "deep"
 
   // Styling
@@ -80,6 +84,27 @@ export const CharacterConfigSchema = z.object({
 });
 
 export type CharacterConfig = z.infer<typeof CharacterConfigSchema>;
+
+// ── Preset library schemas (LIB-01) ──────────────────────────────────────
+
+// A single saved character preset persisted in localStorage.
+// `config` is a partial CharacterConfig — all fields optional; Zod
+// tolerates partial blobs (safeParse is the call boundary).
+export const CharacterPresetSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1).max(60),
+  createdAt: z.string(),
+  config: CharacterConfigSchema,
+});
+export type CharacterPreset = z.infer<typeof CharacterPresetSchema>;
+
+// Versioned envelope for the localStorage key `flowboard.character.presets.v1`.
+// `version: 1` — migrate function added in Phase 7+ if the schema changes.
+export const PersistedPresetsSchema = z.object({
+  version: z.literal(1),
+  data: z.array(CharacterPresetSchema),
+});
+export type PersistedPresets = z.infer<typeof PersistedPresetsSchema>;
 
 // Versioned envelope for localStorage blobs (LIB-01 in Phase 6 will
 // wire this into the persist middleware's `version` + `migrate` options).
