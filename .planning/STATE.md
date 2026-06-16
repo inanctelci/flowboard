@@ -1,102 +1,77 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
-current_phase: 3 — Turkish + Switcher
-current_plan: 03-PLAN (complete)
-status: Phase 3 complete
-last_updated: "2026-06-10T19:05:00Z"
+milestone_name: Frontend i18n (English + Turkish)
+status: Awaiting next milestone
+last_updated: "2026-06-16T19:18:38.611Z"
+last_activity: 2026-06-16 — Milestone v1.0 completed and archived
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 7
-  completed_plans: 7
+  completed_plans: 10
   percent: 100
 ---
 
-# Project State — Flowboard i18n Milestone
+# Project State — Flowboard
 
-**Last updated:** 2026-06-10
-**Session:** Phase 3 complete — Turkish translation (417 keys) + language picker in SettingsPanel
+**Last updated:** 2026-06-16
+**Session:** v1.0 (Frontend i18n) shipped and archived; project awaiting next milestone definition
 
 ---
 
 ## Project Reference
 
-**Project:** Flowboard — Frontend i18n Milestone
-**Core value:** Every visible UI string in `frontend/src/` usable end-to-end in Turkish (and any future community locale) without losing existing generation, reference, or planner functionality.
-**Project file:** `.planning/PROJECT.md`
-**Milestone mode:** MVP — app runs in English at every phase boundary
+See: `.planning/PROJECT.md` (updated 2026-06-16)
+
+**Core value:** Local-only, single-user infinite-canvas workspace for AI media workflows — composing characters, products, scenes, and videos as a directed graph and driving generation through a Chrome MV3 extension that proxies Google Flow.
+
+**Current focus:** Planning the next milestone (`/gsd-new-milestone`).
 
 ---
 
 ## Current Position
 
-**Current phase:** 3 — Turkish + Switcher (COMPLETE)
-**Current plan:** 03-PLAN complete
-**Status:** Phase 3 complete — ready for Phase 4 (Polish + Verify)
-**Phase goal:** ✓ Full Turkish translation + language picker UI delivered
-
-```
-Progress: [██████░░░░] 57%
-```
+Phase: v1.0 milestone complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-16 — Milestone v1.0 archived to `.planning/milestones/v1.0-*`
 
 ---
 
-## Phase Summary
+## Deferred Items
 
-| Phase | Name | Status | Requirements |
-|-------|------|--------|-------------|
-| 1 | Infra + Audit | Complete | INFRA-01..07, BUGS-01..03 (10) |
-| 2 | English Extraction | Complete | EXTRACT-01..07 (7) |
-| 3 | Turkish + Switcher | Complete | TR-01..04, SWITCH-01..04 (8) |
-| 4 | Polish + Verify | Not started | VERIFY-01..04, INFRA-08 (5) |
+Items acknowledged and deferred at milestone v1.0 close on 2026-06-16. The
+implementation for each REQ-ID landed in code; the verification work cannot be
+automated (browser-driven UAT and native-speaker linguistic review) and was
+explicitly carried over.
 
----
+| Category | Item | Status | Source |
+|----------|------|--------|--------|
+| verification_gap | Phase 01 `01-VERIFICATION.md` | human_needed | Pre-close audit `audit-open` |
+| verification_gap | Phase 04 `04-VERIFICATION.md` | human_needed | Pre-close audit `audit-open` |
+| requirement_open | `VERIFY-01` — manual end-to-end Turkish flow | human_needed | Phase 4 MAINTAINER-CHECKLIST |
+| requirement_open | `VERIFY-02` — layout review at Turkish string lengths (1280×800) | human_needed | Phase 4 MAINTAINER-CHECKLIST |
+| requirement_open | `VERIFY-04` — DevTools `tr-TR` locale exercises BUGS-02 dotted-i fix | human_needed | Phase 4 MAINTAINER-CHECKLIST |
+| requirement_open | `TR-02` — native-speaker refinement pass on `tr.json` | human_needed | Phase 4 MAINTAINER-CHECKLIST |
 
-## Performance Metrics
-
-| Metric | Value |
-|--------|-------|
-| Total requirements (v1) | 30 |
-| Requirements completed | 0 |
-| Phases complete | 3/4 |
-| Plans complete | 7/7 |
+Action: work through `.planning/milestones/v1.0-phases/04-polish-verify/MAINTAINER-CHECKLIST.md` (if phases archived) or `.planning/phases/04-polish-verify/MAINTAINER-CHECKLIST.md` in a browser when ready. These items do not block defining or starting the next milestone.
 
 ---
 
 ## Accumulated Context
 
-### Key Decisions
+### Carried-Over Decisions
+
+Full milestone v1.0 decision log lives in `.planning/PROJECT.md` Key Decisions table and `.planning/milestones/v1.0-ROADMAP.md`. The following remain load-bearing for any frontend work:
 
 | Decision | Rationale |
 |----------|-----------|
-| react-i18next@^17 + i18next@^26 | Locked from research — Lingui 6 disqualified (Vite >=6.3 peer dep); best DX for React 18 + TS strict |
-| "Generate" → "Üret" (not "Oluştur") | "Üret" is the conventional AI generation verb in Turkish UI contexts |
-| "Activity" → "Aktivite" (not "Etkinlik") | Loanword is shorter and more universally understood; maintainer may prefer native form |
-| "Pipeline" left as English | "Ardışık düzen" is the literal translation but Turkish devs universally use "pipeline" |
-| settings-panel__select class for language picker | Native HTML select within existing section pattern; minimal new CSS needed for polish |
-| `flowboard.i18n.locale` localStorage key | Dedicated sibling key to `flowboard.settings.v1`; avoids nested-key lookup complexity |
-| Flat `en.json` / `tr.json`, no namespace split | <300 keys; single namespace reduces OSS contributor friction |
+| Product/model names stay in `constants/`, never in locale JSON | Brand identifiers are not UI copy |
+| No dynamic key construction; no `useTranslation()` in `.ts` files | Breaks static analysis / hooks contract |
+| i18next as locale source of truth; Zustand mirrors | Prevents partial re-render on language switch |
+| Flat single-namespace `en.json` / `tr.json` | <500 keys total; namespace splitting adds OSS contributor friction |
 | TypeScript typed keys via `CustomTypeOptions` | Only automated correctness gate without a frontend test runner |
-| i18next as locale source of truth; Zustand mirrors | Prevents partial re-render on language switch (all `useTranslation()` consumers re-render together) |
-| BUGS-01/02/03 fixed in Phase 1 | BUGS-01 (Vietnamese strings) must be rewritten before string keys can be assigned; BUGS-02 (dotted-i) blocks Turkish correctness; BUGS-03 (lang attr) is 3 lines and foundational |
-| INFRA-08 (CONTRIBUTING-i18n.md) in Phase 4 | Contributor docs describe the final key shape — only accurate after `en.json` is frozen in Phase 3 |
-| Product/model names stay in `constants/`, never in locale JSON | Brand identifiers (`Veo 3.1 Lite`, etc.) are not UI copy; EXTRACT-06 |
-| No dynamic key construction | Breaks static analysis and typed-key enforcement; use explicit `t("key")` per value |
-| No `useTranslation()` in `.ts` files | Hooks violation; use `i18n.t()` singleton in store actions and utility functions |
-
-### Critical Risks
-
-| Risk | Mitigation |
-|------|-----------|
-| Wrapping user-authored content (`data.title`, `data.prompt`, `ref.label`) in `t()` during extraction | Phase 1 produces user-data boundary checklist with comments in NodeCard.tsx and ReferencesPanel.tsx before any string is touched |
-| Missing non-JSX strings (aria-labels, store errors, utility functions = "invisible 40%") | Phase 1 string inventory grep covers all non-JSX sites explicitly |
-| Vietnamese strings in `formatRelativeTime` blocking key assignment | BUGS-01 rewrite happens in Phase 1, before any extraction in Phase 2 |
-
-### Todos
-
-- [ ] Start Phase 1 planning: `/gsd-plan-phase 1`
 
 ### Blockers
 
@@ -108,28 +83,30 @@ None.
 
 To resume this project:
 
-1. Read `.planning/PROJECT.md` for scope and constraints
-2. Read `.planning/ROADMAP.md` for phase structure and success criteria
-3. Read `.planning/REQUIREMENTS.md` for full requirement set with traceability
-4. Check this file for current position and accumulated decisions
-5. Next action: `/gsd-plan-phase 1`
+1. Read `.planning/PROJECT.md` for current scope, constraints, and validated requirements
+2. Read `.planning/MILESTONES.md` for what shipped
+3. Read `.planning/ROADMAP.md` for milestone groupings
+4. Check this file for deferred items and accumulated context
+5. Next action: `/gsd-new-milestone` to define the next milestone
 
 ### Files on disk
 
 | File | Purpose |
 |------|---------|
-| `.planning/PROJECT.md` | Core value, scope, constraints, key decisions |
-| `.planning/REQUIREMENTS.md` | 30 v1 requirements with category groupings and traceability |
-| `.planning/ROADMAP.md` | Phase structure, success criteria, requirement mappings |
-| `.planning/STATE.md` | This file — project memory and session continuity |
+| `.planning/PROJECT.md` | Core value, validated requirements, key decisions, current state |
+| `.planning/MILESTONES.md` | Shipped milestone log (v1.0) |
+| `.planning/ROADMAP.md` | Milestone-grouped phase view |
+| `.planning/STATE.md` | This file — current state and deferred items |
 | `.planning/config.json` | Granularity (coarse), parallelization (true), mode (yolo) |
-| `.planning/research/SUMMARY.md` | Locked technical decisions, phase skeleton, live bugs |
-| `.planning/research/STACK.md` | Library choice rationale |
-| `.planning/research/ARCHITECTURE.md` | Provider placement, data flow, file specs |
-| `.planning/research/FEATURES.md` | Feature landscape |
-| `.planning/research/PITFALLS.md` | 14 pitfalls with phase assignments |
+| `.planning/milestones/v1.0-ROADMAP.md` | Archived v1.0 phase decomposition |
+| `.planning/milestones/v1.0-REQUIREMENTS.md` | Archived v1.0 REQ-IDs with outcomes |
+| `.planning/research/` | v1.0 i18n research (STACK, ARCHITECTURE, FEATURES, PITFALLS, SUMMARY) — keep until next milestone needs different research |
 
 ---
 
-*State initialized: 2026-06-10 after roadmap creation*
-*Phase 3 completed: 2026-06-10 — 417 Turkish keys + language picker in SettingsPanel*
+*v1.0 shipped: 2026-06-10. Archived: 2026-06-16.*
+
+## Operator Next Steps
+
+- Start the next milestone with `/gsd-new-milestone`
+- (Optional) Run the maintainer checklist in a browser to close VERIFY-01/02/04 + TR-02

@@ -5,9 +5,20 @@
 Flowboard is a local-only, single-user infinite-canvas workspace for AI media
 workflows. It composes characters, products, scenes, and videos as a directed
 graph and drives generation through a Chrome MV3 extension that proxies
-requests to Google Flow (Veo 3.1 / GEM_PIX_2). The repo is public on GitHub and
-the current milestone adds internationalization so non-English users (starting
-with Turkish) can use the canvas in their own language.
+requests to Google Flow (Veo 3.1 / GEM_PIX_2). The repo is public on GitHub.
+As of v1.0 the frontend canvas is fully internationalized — English and Turkish
+ship in-tree with a Settings-panel language picker, and community contributors
+can add a new locale by dropping a single JSON file.
+
+## Current State
+
+**Shipped:** v1.0 (2026-06-10) — Frontend internationalization with English and
+Turkish, 424 keys at parity, react-i18next 17 wired into Vite/React, three live
+bugs fixed (Vietnamese in `formatRelativeTime`, dotted-i in
+`humanizeBackendError`, static `html lang`), contributor onboarding doc, parity
+CI script. See `.planning/milestones/v1.0-ROADMAP.md`.
+
+**Next:** Planning milestone (`/gsd-new-milestone`).
 
 ## Core Value
 
@@ -19,7 +30,7 @@ generation, reference, or planner functionality.
 
 ### Validated
 
-<!-- Shipped and confirmed valuable. Inferred from existing codebase at v1.2.20. -->
+<!-- Shipped and confirmed valuable. -->
 
 - ✓ Infinite-canvas board with reusable ref / image / video nodes — v1.2.20 (`frontend/src/canvas/Board.tsx`, `@xyflow/react`)
 - ✓ Multi-source image-to-video generation via Google Flow (Veo 3.1) — v1.2.20 (`agent/flowboard/services/flow_sdk.py`)
@@ -28,18 +39,25 @@ generation, reference, or planner functionality.
 - ✓ Single-consumer asyncio worker queue with per-type handlers — v1.2.20 (`agent/flowboard/worker/processor.py`)
 - ✓ SQLite + SQLModel persistence with cascade deletes — v1.2.20 (`agent/flowboard/db/`)
 - ✓ Cross-board reference library, board ↔ Flow project sync, activity feed, chat planner — v1.2.20 (`agent/flowboard/routes/`)
+- ✓ All user-visible strings in `frontend/src/` extracted into a typed i18n catalog — v1.0 (`frontend/src/i18n/`)
+- ✓ Pluggable i18n infrastructure wired into the React app (react-i18next 17 + i18next 26, typed keys via `CustomTypeOptions`, Zustand mirror) — v1.0
+- ✓ English baseline catalog with complete coverage (424 keys, 20 area prefixes) — v1.0 (`frontend/src/i18n/locales/en.json`)
+- ✓ Turkish catalog at full parity (424 keys, maintainer-quality first pass) — v1.0 (`frontend/src/i18n/locales/tr.json`)
+- ✓ Browser-language auto-detect on first load with English fallback (`i18next-browser-languagedetector`) — v1.0
+- ✓ Language override in Settings panel, persisted via `flowboard.i18n.locale` localStorage key — v1.0 (`frontend/src/components/SettingsPanel.tsx`)
+- ✓ Contributor onboarding for adding new locales (`CONTRIBUTING-i18n.md` + `scripts/check-i18n-parity.mjs`) — v1.0
+- ✓ Three live UI bugs fixed: Vietnamese strings in `formatRelativeTime` (BUGS-01), Turkish dotted-i in `humanizeBackendError` (BUGS-02), static `html lang` (BUGS-03) — v1.0
 
 ### Active
 
-<!-- Current milestone: frontend i18n with English + Turkish at v1. -->
+<!-- To be defined by the next /gsd-new-milestone. The 4 deferred items below
+     were carried over from v1.0 and need maintainer manual verification before
+     they can be ticked off in the validated list. -->
 
-- [ ] All user-visible strings in `frontend/src/` extracted from JSX/TS into a translation catalog
-- [ ] Pluggable i18n infrastructure wired into the React app (locale loading, namespace, fallback)
-- [ ] English (`en`) baseline catalog — complete coverage of extracted strings
-- [ ] Turkish (`tr`) catalog — complete coverage at parity with English
-- [ ] Browser-language auto-detect on first load, falling back to English
-- [ ] Language override in the existing Settings panel, persisted across reloads
-- [ ] End-to-end manual verification: switch to Turkish, drive a full generation flow, switch back
+- [ ] **VERIFY-01** (deferred from v1.0): Manual end-to-end Turkish drive of a full generation flow with no console errors
+- [ ] **VERIFY-02** (deferred from v1.0): Layout review at Turkish string lengths at 1280×800 (no clipping)
+- [ ] **VERIFY-04** (deferred from v1.0): DevTools `tr-TR` locale override exercises the BUGS-02 dotted-i fix in `humanizeBackendError`
+- [ ] **TR-02** (deferred from v1.0): Native-speaker refinement pass on `frontend/src/i18n/locales/tr.json`
 
 ### Out of Scope
 
@@ -55,24 +73,27 @@ generation, reference, or planner functionality.
 
 ## Context
 
-- The product is at **v1.2.20** and works end-to-end for the maintainer. This
-  is a feature-add milestone on top of a mature codebase, not a build-from-zero
-  effort. Existing tests (333 passing on the agent) and existing flows must
-  keep working.
+- The product remains at **v1.2.20** for agent features and has just shipped
+  **v1.0** for the frontend i18n surface. Existing tests (333 passing on the
+  agent) and existing flows keep working — i18n was a pure additive layer to UI
+  text.
 - The repo is public and the README explicitly courts sponsors and the
-  open-source community (Vietnam / Korea audience hints, multiple sponsor QR
-  codes). Adding Turkish first is a maintainer-language choice; the
-  infrastructure should make any community-contributed locale a JSON drop.
+  open-source community. Adding Turkish first was a maintainer-language choice;
+  the i18n infrastructure now makes any community-contributed locale a JSON drop
+  (see `CONTRIBUTING-i18n.md` and `scripts/check-i18n-parity.mjs`).
 - Frontend is **React 18 + TypeScript strict + Vite 5** with **Zustand** for
-  state. No existing i18n library. Strings are currently hardcoded inline in
-  JSX across `frontend/src/canvas/`, `frontend/src/components/`, dialogs, the
-  Settings panel, and inline error / empty-state copy.
+  state. After v1.0: **react-i18next 17 + i18next 26** wired in, all
+  user-visible strings under `frontend/src/` flow through `t()`, and the
+  TypeScript compiler enforces key existence via `CustomTypeOptions`
+  declaration merging.
 - No frontend test framework is configured (`package.json` has no `test`
-  script). Verification of i18n will be manual / type-driven, with the
-  TypeScript compiler enforcing key existence if the chosen library has TS
-  support.
-- The codebase is already mapped under `.planning/codebase/` (analysis date
-  2026-06-10) — `STACK.md`, `ARCHITECTURE.md`, `STRUCTURE.md` are current.
+  script). Verification of i18n is manual / type-driven; the i18n parity check
+  script provides automated drift detection between locale catalogs.
+- The codebase map under `.planning/codebase/` (analysis date 2026-06-10) is
+  still current — `STACK.md`, `ARCHITECTURE.md`, `STRUCTURE.md` reflect post-v1.0
+  state minus the i18n module additions.
+- **Bundle size after v1.0:** 539 KB → 580 KB (+41 KB for i18next runtime +
+  424 keys × 2 locales).
 
 ## Constraints
 
@@ -88,11 +109,16 @@ generation, reference, or planner functionality.
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Frontend UI only — no backend/extension/LLM-output translation | Smallest believable slice that delivers user value; keeps server logs in one language; LLM output is its own concern | — Pending |
-| Ship English + Turkish at v1 (not just plumbing + sample) | Maintainer is Turkish; a real second locale forces the plumbing to be honest about parity, plural forms, and string-key shape | — Pending |
-| Auto-detect from browser + override in existing Settings panel | Settings panel already exists; no new UI chrome needed; users who want override get it without a top-bar redesign | — Pending |
-| Pluggable infra so community can add locales by dropping a JSON | Open-source repo; lowers contribution barrier; matches react-i18next / similar library norms | — Pending |
-| Library choice deferred to research phase | Default expectation is react-i18next, but i18next vs FormatJS vs Lingui has real tradeoffs in Vite + TS-strict; let research decide | — Pending |
+| Frontend UI only — no backend/extension/LLM-output translation | Smallest believable slice that delivers user value; keeps server logs in one language; LLM output is its own concern | ✓ Good — v1.0 shipped without touching backend logs; LLM output stayed user's concern |
+| Ship English + Turkish at v1 (not just plumbing + sample) | Maintainer is Turkish; a real second locale forces the plumbing to be honest about parity, plural forms, and string-key shape | ✓ Good — forced 30+ string-shape decisions that a stub locale would have hidden |
+| Auto-detect from browser + override in existing Settings panel | Settings panel already exists; no new UI chrome needed; users who want override get it without a top-bar redesign | ✓ Good — `<select>` in existing section pattern; ~80 LOC of new UI total |
+| Pluggable infra so community can add locales by dropping a JSON | Open-source repo; lowers contribution barrier; matches react-i18next / similar library norms | ✓ Good — `CONTRIBUTING-i18n.md` + `check-i18n-parity.mjs` deliver this; awaiting first community PR |
+| `react-i18next@^17` + `i18next@^26` over Lingui/FormatJS | Lingui 6 disqualified (Vite >=6.3 peer dep mismatch); FormatJS overkill for <300 keys; react-i18next is OSS-recognizable | ✓ Good — locked in research; no surprises through execution |
+| Flat single-namespace `en.json` / `tr.json` (no namespace split) | <300 keys at v1; namespace splitting adds friction for OSS contributors | ✓ Good — ended at 424 keys, still well within single-namespace ergonomics |
+| TypeScript typed keys via `CustomTypeOptions` declaration merging | Only automated correctness gate without a frontend test runner | ✓ Good — caught 7 invalid key references during extraction; lint = CI |
+| i18next as locale source of truth; Zustand mirrors for UI | Prevents partial re-render on language switch (all `useTranslation()` consumers re-render together) | ✓ Good — no flicker on switch; persistence handled via dedicated `flowboard.i18n.locale` key |
+| Product/model names stay in `constants/`, never in locale JSON | Brand identifiers (`Veo 3.1 Lite`, `Nano Banana Pro`, etc.) are not UI copy | ✓ Good — zero brand strings leaked into locale files |
+| Defer `VERIFY-01/02/04` and `TR-02` to maintainer manual pass | Browser-driven UAT and native-speaker review cannot be automated; explicit deferral is cleaner than fake ticks | ⚠ Revisit — 4 items still open; track until closed in a future patch |
 
 ## Evolution
 
@@ -112,4 +138,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-10 after initialization (i18n milestone)*
+*Last updated: 2026-06-16 after v1.0 milestone close (i18n milestone shipped)*
