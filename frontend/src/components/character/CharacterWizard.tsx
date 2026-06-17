@@ -40,9 +40,29 @@ export function CharacterWizard({ rfId, onDone }: CharacterWizardProps) {
   const [step, setStep] = useState<WizardStep>(1);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
 
-  // Wizard field state — seeded from undefined (discard-on-cancel per WIZARD-05, D-03).
-  // NO module-level draft cache; reopening always starts fresh.
-  const [config, setConfig] = useState<Partial<CharacterConfig>>({});
+  // Wizard field state — lazy-seeded from the node's current data on first open
+  // (so v1.0 boards with migrated char* fields pre-fill the wizard — ROADMAP SC-5).
+  // Discard-on-cancel (WIZARD-05, D-03) is preserved by React unmounting the
+  // component on ESC / close — no module-level draft cache is kept across reopens.
+  const [config, setConfig] = useState<Partial<CharacterConfig>>(() => {
+    const node = useBoardStore.getState().nodes.find((n) => n.id === rfId);
+    const d = node?.data;
+    if (!d) return {};
+    return {
+      charGender: d.charGender,
+      charEthnicity: d.charEthnicity,
+      charAge: d.charAge,
+      charHair: d.charHair,
+      charHairColor: d.charHairColor,
+      charHairStyle: d.charHairStyle,
+      charSkinTone: d.charSkinTone,
+      charVibe: d.charVibe,
+      charOutfit: d.charOutfit,
+      charExpression: d.charExpression,
+      charLighting: d.charLighting,
+      charExtras: d.charExtras,
+    };
+  });
 
   // Merge a partial update into the config (clone-then-edit pattern).
   function handleChange(patch: Partial<CharacterConfig>) {
