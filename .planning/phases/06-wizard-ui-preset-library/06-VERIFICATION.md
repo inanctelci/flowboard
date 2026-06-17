@@ -2,9 +2,16 @@
 phase: 06-wizard-ui-preset-library
 plan: 06-01
 verified: 2026-06-17T12:00:00Z
-status: gaps_found
-score: 4/5
+status: human_needed
+score: 5/5
 overrides_applied: 0
+# Note: original verifier verdict was gaps_found (SC-5 seeding gap on
+# CharacterWizard.tsx:45). Gap was fixed inline in commit 685d810 —
+# wizard now lazy-reads node.data on mount via useBoardStore.getState().
+# TS strict still clean. Discard-on-cancel (WIZARD-05) preserved by
+# React unmount. Remaining items are browser-runtime UAT only.
+post_fix_status: human_needed
+sc5_fix_commit: 685d810
 gaps:
   - truth: "A v1.0 board node with old charCountry / charVibe opens the wizard with fields pre-filled from the converted values (ROADMAP SC-5, WIZARD-05 second clause)"
     status: failed
