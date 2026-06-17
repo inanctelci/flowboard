@@ -14,37 +14,15 @@ can add a new locale by dropping a single JSON file.
 
 **Shipped:** v1.0 (2026-06-10) — Frontend internationalization with English and
 Turkish, 424 keys at parity, react-i18next 17 wired into Vite/React, three live
-bugs fixed (Vietnamese in `formatRelativeTime`, dotted-i in
-`humanizeBackendError`, static `html lang`), contributor onboarding doc, parity
-CI script. See `.planning/milestones/v1.0-ROADMAP.md`.
+bugs fixed. See `.planning/milestones/v1.0-ROADMAP.md`.
 
-**Active:** v1.1 — Character Creation Rework. Replace hardcoded preset system
-(genders / countries / vibes) with a guided multi-step wizard producing
-structured, reusable character configurations.
+**Shipped:** v1.1 (2026-06-17) — Character Creation Rework. 5-step guided wizard
+replaces hardcoded preset picker; structured fields on `node.data`; saveable
+preset library in localStorage; 3-site convert-on-read migration keeps v1.0
+boards working; 102 new i18n keys at EN+TR parity (511/511 total); Zod 4 added.
+See `.planning/milestones/v1.1-ROADMAP.md`.
 
-## Current Milestone: v1.1 Character Creation Rework
-
-**Goal:** Replace the hardcoded character preset system (`CHARACTER_GENDERS` /
-`CHARACTER_COUNTRIES` / `CHARACTER_VIBES`) with a guided multi-step wizard that
-produces structured, reusable character configurations — overcoming the
-narrowness of frozen Vietnamese-labelled presets that don't reflect the
-diversity of characters users want to create.
-
-**Target features:**
-- Guided multi-step wizard for character creation (identity → appearance →
-  styling → expression/lighting → review), replacing the dropdown-driven preset
-  picker in `GenerationDialog`
-- Structured data model — typed fields persisted on `node.data` (gender,
-  ethnicity/origin, age, hair, outfit, vibe, expression, lighting); prompt
-  assembled at dispatch from those fields, with the existing framing anchors
-  preserved
-- Reusable character library — user can save their own character
-  configurations as named presets and reuse them across boards
-- Removal + migration — delete the old presets module and strip / backfill
-  existing nodes' `charCountry` / `charVibe` fields so v1.0 boards still load
-  without console errors
-- i18n coverage — add EN + TR strings for every new wizard surface, maintaining
-  v1.0 parity discipline (`scripts/check-i18n-parity.mjs` stays green)
+**Next:** Planning milestone (`/gsd-new-milestone`).
 
 ## Core Value
 
@@ -73,18 +51,29 @@ generation, reference, or planner functionality.
 - ✓ Language override in Settings panel, persisted via `flowboard.i18n.locale` localStorage key — v1.0 (`frontend/src/components/SettingsPanel.tsx`)
 - ✓ Contributor onboarding for adding new locales (`CONTRIBUTING-i18n.md` + `scripts/check-i18n-parity.mjs`) — v1.0
 - ✓ Three live UI bugs fixed: Vietnamese strings in `formatRelativeTime` (BUGS-01), Turkish dotted-i in `humanizeBackendError` (BUGS-02), static `html lang` (BUGS-03) — v1.0
+- ✓ Structured character data model with flat `char*` keys on `node.data` (gender, ethnicity, age, hair color/style, skin tone, outfit, vibe, expression, lighting, extras) — v1.1 (`frontend/src/lib/character/schema.ts`)
+- ✓ Zod 4 schema as single source of truth for `CharacterConfig` + `PersistedPresets`; runtime parse via `safeParse` on every localStorage read — v1.1
+- ✓ Pure prompt assembler `buildCharacterPrompt` with frozen FRAMING_ANCHORS and deterministic token order; A/B parity with v1.0 confirmed — v1.1 (`frontend/src/lib/character/buildCharacterPrompt.ts`)
+- ✓ Delta-only PATCH helper `toCharacterDataPatch` honoring shallow-merge `null`-sentinel contract — v1.1
+- ✓ Convert-on-read migration (legacy `charCountry` → `charEthnicity` via inlined 7-entry English-tag map) wired at all 3 hydration sites (`loadInitialBoard`, `switchBoard`, `refreshBoardState`) — v1.1
+- ✓ Guided 5-step character wizard (Identity → Appearance → Styling → Expression → Review) mounted inside `GenerationDialog` replacing the dropdown picker — v1.1 (`frontend/src/components/character/CharacterWizard.tsx`)
+- ✓ Saveable character preset library backed by hand-rolled localStorage Zustand slice (key `flowboard.character.presets.v1`, 50-cap, error routing to Toaster) — v1.1 (`frontend/src/store/characterPresets.ts`)
+- ✓ ResultViewer pills render new structured fields (`charEthnicity` bucket key / free-text / legacy `charCountry` shim) with constant-table i18n lookup — v1.1
+- ✓ Constants module `frontend/src/constants/character.ts` deleted; vibe tokens moved to `lib/character/vibeTokens.ts`; 15 stale legacy i18n keys removed — v1.1
+- ✓ 102 new wizard / preset / character-field i18n keys at EN+TR parity (511/511 total); `scripts/check-i18n-parity.mjs` exits 0 — v1.1
 
 ### Active
 
-<!-- v1.1 Character Creation Rework requirements are tracked in
-     .planning/REQUIREMENTS.md. The 4 items below were deferred at v1.0 close
-     and still need maintainer manual verification before they can be ticked
-     off in the validated list — they do not block v1.1. -->
+<!-- No active milestone — awaiting next /gsd-new-milestone. The items below
+     were deferred at v1.0 close (and re-confirmed at v1.1 close) and need
+     maintainer manual verification before they can be ticked off as Validated.
+     v1.1 added 9 browser-UAT items tracked in STATE.md "Deferred Items". -->
 
 - [ ] **VERIFY-01** (deferred from v1.0): Manual end-to-end Turkish drive of a full generation flow with no console errors
 - [ ] **VERIFY-02** (deferred from v1.0): Layout review at Turkish string lengths at 1280×800 (no clipping)
 - [ ] **VERIFY-04** (deferred from v1.0): DevTools `tr-TR` locale override exercises the BUGS-02 dotted-i fix in `humanizeBackendError`
 - [ ] **TR-02** (deferred from v1.0): Native-speaker refinement pass on `frontend/src/i18n/locales/tr.json`
+- [ ] **UAT-V1.1-01..09** (deferred from v1.1): Browser-runtime UAT — v1.0 board hydration, wizard E2E, preset save/load/rename/delete, 51-cap, corrupt-blob, ESC discard, A/B parity runtime, TR locale spot-check. See STATE.md "Deferred Items (From v1.1)".
 
 ### Out of Scope
 
@@ -146,6 +135,15 @@ generation, reference, or planner functionality.
 | i18next as locale source of truth; Zustand mirrors for UI | Prevents partial re-render on language switch (all `useTranslation()` consumers re-render together) | ✓ Good — no flicker on switch; persistence handled via dedicated `flowboard.i18n.locale` key |
 | Product/model names stay in `constants/`, never in locale JSON | Brand identifiers (`Veo 3.1 Lite`, `Nano Banana Pro`, etc.) are not UI copy | ✓ Good — zero brand strings leaked into locale files |
 | Defer `VERIFY-01/02/04` and `TR-02` to maintainer manual pass | Browser-driven UAT and native-speaker review cannot be automated; explicit deferral is cleaner than fake ticks | ⚠ Revisit — 4 items still open; track until closed in a future patch |
+| **v1.1**: Flat `char*` keys on `node.data` (no nested `character: {}` object) | Shallow-merge PATCH contract requires top-level keys; nested object would be wholesale-replaced (CLAUDE.md anti-pattern) | ✓ Good — wizard submit verified to leave `mediaId` / `aiBrief` intact |
+| **v1.1**: Wizard mounts inside existing `GenerationDialog` | Reuse modal backdrop / focus trap / ESC; no second modal layer | ✓ Good — `<CharacterWizard rfId onDone />` at GenerationDialog:809; ~0 modal infra duplication |
+| **v1.1**: Wizard transient state in `useState` (not Zustand) | Discarded on cancel; not persisted mid-step (WIZARD-05) | ✓ Good — React unmount handles discard; SC-5 seeding gap caught + fixed inline (685d810) |
+| **v1.1**: Preset library in localStorage via hand-rolled persist | Matches `references.ts` codebase convention; Reference table is media-first (wrong semantic for config blobs); `zustand/middleware/persist` exists in repo but unused | ✓ Good — PATTERNS research aligned with codebase; functional outcome identical to REQUIREMENTS spec |
+| **v1.1**: Convert-on-read migration (no startup PATCHes) | Thundering herd of PATCHes on load creates a false "board modified" signal | ✓ Good — 3 hydration sites wrap; Phase 5 INFO gap (refreshBoardState) closed inline in Phase 6 |
+| **v1.1**: Stable English keys / English prose stored on `node.data` | Boards must be locale-independent; assembler stays correct on any installed locale | ✓ Good — closed-enum option keys all stable English; no `t()` calls inside data assembly |
+| **v1.1**: Zod 4 as the only new runtime dependency | Runtime parse of localStorage `CharacterConfig` blobs; prevents corrupt state from blocking the app | ✓ Good — `safeParse` failure routes via `error` slot to Toaster; never throws to React tree |
+| **v1.1**: Coarse granularity — 3 phases (research recommended 5) | Phase 3 (preset store) merged into Phase 6 with wizard UI; Phase 4 (constants removal) merged into Phase 7 with i18n audit | ✓ Good — natural breakpoints; no awkward partial phases |
+| **v1.1**: Defer 9 browser-UAT items to maintainer pass | Browser-driven UAT can't be automated; static gates (TS strict, parity, grep) all green | ⚠ Revisit — 9 items still open; track until closed |
 
 ## Evolution
 
@@ -165,4 +163,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-16 — v1.1 milestone (Character Creation Rework) opened*
+*Last updated: 2026-06-17 — v1.1 milestone (Character Creation Rework) closed and archived*

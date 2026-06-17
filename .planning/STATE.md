@@ -57,7 +57,9 @@ These constraints apply to every phase in v1.1. Verify at each phase boundary:
 
 ## Deferred Items
 
-Items carried over from v1.0 (see MILESTONES.md). These do not block v1.1.
+Items carried over from v1.0 AND v1.1 (see MILESTONES.md). These do not block the next milestone. All v1.1 carry-overs are browser-runtime UAT — static gates (TS strict, i18n parity, grep) all passed.
+
+### From v1.0 (still open)
 
 | Category | Item | Status | Source |
 |----------|------|--------|--------|
@@ -67,6 +69,25 @@ Items carried over from v1.0 (see MILESTONES.md). These do not block v1.1.
 | requirement_open | `VERIFY-02` — layout review at Turkish string lengths (1280×800) | human_needed | Phase 4 MAINTAINER-CHECKLIST |
 | requirement_open | `VERIFY-04` — DevTools `tr-TR` locale exercises BUGS-02 dotted-i fix | human_needed | Phase 4 MAINTAINER-CHECKLIST |
 | requirement_open | `TR-02` — native-speaker refinement pass on `tr.json` | human_needed | Phase 4 MAINTAINER-CHECKLIST |
+
+### From v1.1 (browser-UAT carry-over)
+
+Acknowledged at v1.1 close on 2026-06-17. The implementation for each REQ-ID landed in code; the verification work cannot be automated (browser-driven UAT) and was explicitly carried over.
+
+| Category | Item | Status | Source |
+|----------|------|--------|--------|
+| verification_gap | Phase 05 `05-VERIFICATION.md` | human_needed | Pre-close audit `audit-open` |
+| verification_gap | Phase 06 `06-VERIFICATION.md` | human_needed | Pre-close audit `audit-open` |
+| verification_gap | Phase 07 `07-VERIFICATION.md` | human_needed | Pre-close audit `audit-open` |
+| browser_uat | `UAT-V1.1-01` — v1.0 board hydration: Network tab zero PATCH writes, charEthnicity populated | human_needed | v1.1 audit / 05-VERIFICATION |
+| browser_uat | `UAT-V1.1-02` — switchBoard + refreshBoardState hydration sites exercised in browser | human_needed | v1.1 audit / 06-VERIFICATION |
+| browser_uat | `UAT-V1.1-03` — buildCharacterPrompt runtime byte-equality vs v1.0 baseline | human_needed | v1.1 audit (MIGRATE-04 final) |
+| browser_uat | `UAT-V1.1-04` — Zod safeParse runtime: 201-char extras fails; empty object passes | human_needed | v1.1 audit |
+| browser_uat | `UAT-V1.1-05` — end-to-end wizard flow + preset save/load/rename/delete | human_needed | v1.1 audit |
+| browser_uat | `UAT-V1.1-06` — 51st preset save shows `wizard.error.libraryFull` toast | human_needed | v1.1 audit |
+| browser_uat | `UAT-V1.1-07` — corrupt localStorage routes `wizard.error.presetsCorrupted` to Toaster | human_needed | v1.1 audit |
+| browser_uat | `UAT-V1.1-08` — ESC/backdrop/Cancel discards wizard transient state | human_needed | v1.1 audit |
+| browser_uat | `UAT-V1.1-09` — TR locale spot-check on character pills + wizard chip labels | human_needed | v1.1 audit |
 
 ---
 
