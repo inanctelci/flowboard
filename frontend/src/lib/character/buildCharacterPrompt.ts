@@ -10,7 +10,7 @@
 //   { charHairColor: "blonde" }                       → token: "blonde"            (color only)
 //   {}                                                → zero hair tokens
 import type { CharacterConfig } from "./schema";
-import { CHARACTER_VIBES } from "../../constants/character";
+import { VIBE_TOKENS } from "./vibeTokens";
 
 // Framing anchors are FROZEN — do not parameterize. Appended after
 // styling tokens but before negative constraints so diffusion models
@@ -35,12 +35,12 @@ const AGE_TOKENS: Record<string, string> = {
   "senior": "elderly",
 };
 
-// Resolve vibe tokens from the CHARACTER_VIBES constant. Returns the
-// 4-element token array for a known vibe key, or an empty array for
-// unknown / unset vibes — no error, no fallback to a default vibe.
+// Resolve vibe tokens from VIBE_TOKENS. Returns the 4-element token
+// array for a known vibe key, or an empty array for unknown / unset
+// vibes — no error, no fallback to a default vibe.
 function resolveVibeTokens(vibe: string | undefined): readonly string[] {
   if (!vibe) return [];
-  return CHARACTER_VIBES.find((v) => v.key === vibe)?.tokens ?? [];
+  return VIBE_TOKENS[vibe] ?? [];
 }
 
 // Assemble a deterministic character prompt from any partial CharacterConfig.
