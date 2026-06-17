@@ -5,7 +5,70 @@ import { useBoardStore } from "../store/board";
 import { useSettingsStore } from "../store/settings";
 import { useReferencesStore } from "../store/references";
 import { getMediaStatus, mediaUrl, type MediaStatus } from "../api/client";
-import { localizedCountryLabel, localizedVibeLabel } from "../constants/character";
+
+// PHASE 7 SHIM: legacy charCountry → English-label fallback for v1.0 boards
+// where hydration migration may not have populated charEthnicity yet.
+const LEGACY_COUNTRY_LABELS: Record<string, string> = {
+  vn: "Vietnamese",
+  jp: "Japanese",
+  kr: "Korean",
+  cn: "Chinese",
+  th: "Thai",
+  us: "American",
+  fr: "French",
+};
+
+// Constant-table mapping ethnicity-bucket key → i18n key. NO dynamic key
+// construction (I18N-04 anti-pattern). Free-text / unmapped values fall
+// through to raw-string render in the JSX below.
+const ETHNICITY_BUCKET_I18N: Record<string, string> = {
+  eastAsian: "wizard.field.ethnicity.bucket.eastAsian",
+  southAsian: "wizard.field.ethnicity.bucket.southAsian",
+  southeastAsian: "wizard.field.ethnicity.bucket.southeastAsian",
+  middleEastern: "wizard.field.ethnicity.bucket.middleEastern",
+  westAfrican: "wizard.field.ethnicity.bucket.westAfrican",
+  eastAfrican: "wizard.field.ethnicity.bucket.eastAfrican",
+  european: "wizard.field.ethnicity.bucket.european",
+  latinAmerican: "wizard.field.ethnicity.bucket.latinAmerican",
+  northAmericanIndigenous: "wizard.field.ethnicity.bucket.northAmericanIndigenous",
+  pacificIslander: "wizard.field.ethnicity.bucket.pacificIslander",
+};
+
+// Vibe key → i18n key (constant-table; no dynamic construction).
+const VIBE_OPTION_I18N: Record<string, string> = {
+  clean: "wizard.field.vibe.option.clean",
+  douyin: "wizard.field.vibe.option.douyin",
+  oldmoney: "wizard.field.vibe.option.oldmoney",
+  coldgirl: "wizard.field.vibe.option.coldgirl",
+  kpop: "wizard.field.vibe.option.kpop",
+  casual: "wizard.field.vibe.option.casual",
+};
+
+function ethnicityLabel(
+  t: (k: string) => string,
+  charEthnicity?: string,
+  charCountry?: string,
+): string | null {
+  if (charEthnicity && ETHNICITY_BUCKET_I18N[charEthnicity]) {
+    return t(ETHNICITY_BUCKET_I18N[charEthnicity]);
+  }
+  if (charEthnicity && charEthnicity.trim().length > 0) {
+    // Free-text ethnicity (English prose stored on node.data).
+    return charEthnicity;
+  }
+  if (charCountry && LEGACY_COUNTRY_LABELS[charCountry]) {
+    // PHASE 7 SHIM: v1.0 node not yet migrated to charEthnicity.
+    return LEGACY_COUNTRY_LABELS[charCountry];
+  }
+  return null;
+}
+
+function vibeLabel(t: (k: string) => string, charVibe?: string): string | null {
+  if (charVibe && VIBE_OPTION_I18N[charVibe]) {
+    return t(VIBE_OPTION_I18N[charVibe]);
+  }
+  return null;
+}
 
 const ICON: Record<string, string> = {
   character: "◎",
@@ -653,22 +716,30 @@ export function ResultViewer() {
                 metadataModel.label
               )}
             </dd>
-            {data?.type === "character" && localizedCountryLabel(data.charCountry) && (
-              <>
-                <dt>{t("result.meta_country")}</dt>
-                <dd>
-                  <span className="model-badge">{localizedCountryLabel(data.charCountry)}</span>
-                </dd>
-              </>
-            )}
-            {data?.type === "character" && localizedVibeLabel(data.charVibe) && (
-              <>
-                <dt>{t("result.meta_vibe")}</dt>
-                <dd>
-                  <span className="model-badge">{localizedVibeLabel(data.charVibe)}</span>
-                </dd>
-              </>
-            )}
+            {(() => {
+              const label = data?.type === "character"
+                ? ethnicityLabel(t, data.charEthnicity, data.charCountry)
+                : null;
+              return label ? (
+                <>
+                  <dt>{t("result.meta_country")}</dt>
+                  <dd>
+                    <span className="model-badge">{label}</span>
+                  </dd>
+                </>
+              ) : null;
+            })()}
+            {(() => {
+              const label = data?.type === "character" ? vibeLabel(t, data.charVibe) : null;
+              return label ? (
+                <>
+                  <dt>{t("result.meta_vibe")}</dt>
+                  <dd>
+                    <span className="model-badge">{label}</span>
+                  </dd>
+                </>
+              ) : null;
+            })()}
             <dt>{t("result.meta_aspect")}</dt>
             <dd>{formatAspectRatio(data?.aspectRatio)}</dd>
             <dt>{t("result.meta_time")}</dt>
