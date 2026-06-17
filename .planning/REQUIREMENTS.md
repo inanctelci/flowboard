@@ -17,33 +17,33 @@ Each requirement maps to exactly one roadmap phase. Verification is manual / TS-
 
 ### Wizard UI
 
-- [ ] **WIZARD-01**: Multi-step guided wizard component (`components/character/CharacterWizard.tsx`) mounted inside the existing `GenerationDialog` `{isCharacter && (...)}` block — replaces the inline preset picker, reuses existing modal backdrop / focus trap / ESC handler
-- [ ] **WIZARD-02**: Wizard steps: Identity → Appearance → Styling → Expression → Review. Step headers are navigation guidance, not hard gates — user can jump to any step at any time; only minimum-viable fields are required for submit
-- [ ] **WIZARD-03**: Closed-enum fields rendered as chip rows (gender, age range, expression, vibe, hair color, hair style, optional lighting); free-text fields for ethnicity-override and an "extras" escape hatch (200-char cap)
-- [ ] **WIZARD-04**: Review step shows the assembled prompt preview (read-only) via `buildCharacterPrompt` — users see exactly what gets dispatched
-- [ ] **WIZARD-05**: Cancel / ESC / backdrop click discards transient wizard state; submit calls existing `dispatchGeneration()` boundary unchanged (no new generation pipeline)
+- [x] **WIZARD-01**: Multi-step guided wizard component (`components/character/CharacterWizard.tsx`) mounted inside the existing `GenerationDialog` `{isCharacter && (...)}` block — replaces the inline preset picker, reuses existing modal backdrop / focus trap / ESC handler
+- [x] **WIZARD-02**: Wizard steps: Identity → Appearance → Styling → Expression → Review. Step headers are navigation guidance, not hard gates — user can jump to any step at any time; only minimum-viable fields are required for submit
+- [x] **WIZARD-03**: Closed-enum fields rendered as chip rows (gender, age range, expression, vibe, hair color, hair style, optional lighting); free-text fields for ethnicity-override and an "extras" escape hatch (200-char cap)
+- [x] **WIZARD-04**: Review step shows the assembled prompt preview (read-only) via `buildCharacterPrompt` — users see exactly what gets dispatched
+- [x] **WIZARD-05**: Cancel / ESC / backdrop click discards transient wizard state; submit calls existing `dispatchGeneration()` boundary unchanged (no new generation pipeline)
 
 ### Preset Library
 
-- [ ] **LIB-01**: New `frontend/src/store/characterPresets.ts` Zustand slice with `zustand/middleware/persist` to `localStorage` (versioned key `flowboard.character.presets.v1`); `partialize` excludes any transient fields
-- [ ] **LIB-02**: "Save as preset" action available from the wizard Review step — user names the preset; full `CharacterConfig` is persisted
-- [ ] **LIB-03**: `PresetList` UI on wizard Step 0 lets the user load a saved preset to pre-fill all wizard fields (clone-then-edit pattern, not edit-in-place — prevents accidental overwrite of a shared preset mid-wizard)
-- [ ] **LIB-04**: Rename and delete presets inline in the wizard; deletes confirm before applying
-- [ ] **LIB-05**: 50-preset cap with warning toast on save; localStorage quota / parse errors route to a store `error` slot consumed by `Toaster` — no silent failure, no app crash if the persisted blob is corrupt
+- [x] **LIB-01**: New `frontend/src/store/characterPresets.ts` Zustand slice with `zustand/middleware/persist` to `localStorage` (versioned key `flowboard.character.presets.v1`); `partialize` excludes any transient fields
+- [x] **LIB-02**: "Save as preset" action available from the wizard Review step — user names the preset; full `CharacterConfig` is persisted
+- [x] **LIB-03**: `PresetList` UI on wizard Step 0 lets the user load a saved preset to pre-fill all wizard fields (clone-then-edit pattern, not edit-in-place — prevents accidental overwrite of a shared preset mid-wizard)
+- [x] **LIB-04**: Rename and delete presets inline in the wizard; deletes confirm before applying
+- [x] **LIB-05**: 50-preset cap with warning toast on save; localStorage quota / parse errors route to a store `error` slot consumed by `Toaster` — no silent failure, no app crash if the persisted blob is corrupt
 
 ### Removal + Migration
 
 - [x] **MIGRATE-01**: Convert-on-read migration in `loadInitialBoard` hydration path — `lib/character/migrate.ts` maps legacy `charCountry` → `charEthnicity` via the existing `CHARACTER_COUNTRIES[n].tag` mapping; legacy `charVibe` retained as-is until WIZARD ships, then mapped or dropped. No automatic PATCHes on startup. — DONE 05-01
-- [ ] **MIGRATE-02**: `CHARACTER_GENDERS`, `CHARACTER_COUNTRIES`, `CHARACTER_VIBES`, `localizedCountryLabel`, `localizedVibeLabel` deleted from `frontend/src/constants/character.ts` only after every call site is updated (grep gate: zero results for those symbols outside the migration shim)
-- [ ] **MIGRATE-03**: `ResultViewer.tsx` reads pills from new structured fields with a temporary `charCountry` fallback shim; verified against an opened v1.0 board (pills render with correct localized labels) before the shim is removed
-- [ ] **MIGRATE-04**: A v1.0 board with old `charCountry: "vn"` / `charVibe: "clean"` nodes loads without console errors, the wizard opens with pre-filled fields, and generation dispatches the same shape of prompt as v1.0 (regression diff captured in a planning note)
+- [x] **MIGRATE-02**: `CHARACTER_GENDERS`, `CHARACTER_COUNTRIES`, `CHARACTER_VIBES`, `localizedCountryLabel`, `localizedVibeLabel` deleted from `frontend/src/constants/character.ts` only after every call site is updated (grep gate: zero results for those symbols outside the migration shim) — DONE 07-01 (795c334)
+- [x] **MIGRATE-03**: `ResultViewer.tsx` reads pills from new structured fields with a temporary `charCountry` fallback shim; verified against an opened v1.0 board (pills render with correct localized labels) before the shim is removed — DONE 07-01 (55283f6)
+- [x] **MIGRATE-04**: A v1.0 board with old `charCountry: "vn"` / `charVibe: "clean"` nodes loads without console errors, the wizard opens with pre-filled fields, and generation dispatches the same shape of prompt as v1.0 (regression diff captured in a planning note) — DONE 07-01 (07-01-SUMMARY.md)
 
 ### i18n Coverage
 
-- [ ] **I18N-01**: All new wizard / preset / character-field strings added to `en.json` and `tr.json` at parity (estimated 40–60 keys); `node scripts/check-i18n-parity.mjs` exits 0 on every commit through the milestone
-- [ ] **I18N-02**: Stale `character.country.*` and legacy `character.vibe.*` keys removed from both locale files in the same commit as `MIGRATE-02`
-- [ ] **I18N-03**: Any new string utility uses `.toLocaleLowerCase("en-US")` / `.toLocaleUpperCase("en-US")` to prevent Turkish dotted-i regressions (same class of bug as v1.0's BUGS-02)
-- [ ] **I18N-04**: No dynamic i18n key construction in the wizard or preset library; no `useTranslation()` in `.ts` files; product / brand names stay in `constants/`, never in locale JSON (v1.0 discipline preserved)
+- [x] **I18N-01**: All new wizard / preset / character-field strings added to `en.json` and `tr.json` at parity (estimated 40–60 keys); `node scripts/check-i18n-parity.mjs` exits 0 on every commit through the milestone — DONE 07-01 (EN=TR=511)
+- [x] **I18N-02**: Stale `character.country.*` and legacy `character.vibe.*` keys removed from both locale files in the same commit as `MIGRATE-02` — DONE 07-01 (795c334)
+- [x] **I18N-03**: Any new string utility uses `.toLocaleLowerCase("en-US")` / `.toLocaleUpperCase("en-US")` to prevent Turkish dotted-i regressions (same class of bug as v1.0's BUGS-02) — DONE 07-01 (Gate 6: zero results)
+- [x] **I18N-04**: No dynamic i18n key construction in the wizard or preset library; no `useTranslation()` in `.ts` files; product / brand names stay in `constants/`, never in locale JSON (v1.0 discipline preserved) — DONE 07-01 (Gate 4+5: zero results)
 
 ## Future Requirements
 
@@ -100,16 +100,16 @@ Phase mapping populated by the roadmapper. All v1.1 requirements covered.
 | DATA-03 | Phase 5 | Done (05-01, 0a69182) |
 | DATA-04 | Phase 5 | Done (05-01, 0a69182) |
 | DATA-05 | Phase 5 | Done (05-01, 0a69182) |
-| WIZARD-01 | Phase 6 | Pending |
-| WIZARD-02 | Phase 6 | Pending |
-| WIZARD-03 | Phase 6 | Pending |
-| WIZARD-04 | Phase 6 | Pending |
-| WIZARD-05 | Phase 6 | Pending |
-| LIB-01 | Phase 6 | Pending |
-| LIB-02 | Phase 6 | Pending |
-| LIB-03 | Phase 6 | Pending |
-| LIB-04 | Phase 6 | Pending |
-| LIB-05 | Phase 6 | Pending |
+| WIZARD-01 | Phase 6 | Complete |
+| WIZARD-02 | Phase 6 | Complete |
+| WIZARD-03 | Phase 6 | Complete |
+| WIZARD-04 | Phase 6 | Complete |
+| WIZARD-05 | Phase 6 | Complete |
+| LIB-01 | Phase 6 | Complete |
+| LIB-02 | Phase 6 | Complete |
+| LIB-03 | Phase 6 | Complete |
+| LIB-04 | Phase 6 | Complete |
+| LIB-05 | Phase 6 | Complete |
 | MIGRATE-01 | Phase 5 | Done (05-01, 0a69182) |
 | MIGRATE-02 | Phase 7 | Pending |
 | MIGRATE-03 | Phase 7 | Pending |

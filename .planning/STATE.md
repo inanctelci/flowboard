@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Character Creation Rework
-status: In Progress
-last_updated: "2026-06-17T00:00:00.000Z"
-last_activity: 2026-06-17 — Phase 5 Plan 1 complete (DATA-01..05, MIGRATE-01)
+status: complete
+last_updated: "2026-06-17T00:33:23Z"
+last_activity: 2026-06-17 — Phase 7 Plan 1 executed (MIGRATE-02, MIGRATE-03, MIGRATE-04, I18N-01..04). v1.1 milestone closed.
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 33
+  completed_phases: 3
+  total_plans: 3
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State — Flowboard
@@ -32,12 +32,12 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 
 ## Current Position
 
-Phase: Phase 5 — Data Model + Migration Foundation (COMPLETE)
-Plan: 05-01 — all 2 tasks done
-Status: In Progress (Phase 5 complete; Phase 6 next)
-Last activity: 2026-06-17 — Phase 5 Plan 1 executed (DATA-01..05, MIGRATE-01)
+Phase: Phase 7 — Constants Removal + i18n Audit (COMPLETE)
+Plan: 07-01 — all 5 steps done
+Status: COMPLETE — v1.1 milestone closed
+Last activity: 2026-06-17 — Phase 7 Plan 1 executed (MIGRATE-02, MIGRATE-03, MIGRATE-04, I18N-01..04)
 
-**Progress bar:** [###-------] 33% (1/3 phases)
+**Progress bar:** [##########] 100% (3/3 phases)
 
 ---
 
@@ -111,13 +111,15 @@ To resume this project:
 3. Read `.planning/ROADMAP.md` for phase decomposition (Phases 5–7)
 4. Read `.planning/REQUIREMENTS.md` for v1.1 REQ-IDs with phase assignments
 5. Check this file for guardrails, decisions, and deferred items
-6. Next action: `/gsd-plan-phase 6` (Character Wizard UI — Phase 5 foundation is complete)
+6. v1.1 milestone is COMPLETE. All 7 requirements (MIGRATE-02..04, I18N-01..04) closed.
 
 ### Performance Log
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 05-data-model-migration-foundation | 05-01 | ~7 min | 2/2 | 7 (4 new, 3 modified) |
+| 06-wizard-ui-preset-library | 06-01 | — | — | — |
+| 07-constants-removal-i18n-audit | 07-01 | ~20 min | 5/5 | 7 (1 new, 5 modified, 1 deleted) |
 
 ### Files on disk
 
