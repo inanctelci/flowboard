@@ -20,7 +20,7 @@
 ### v1.1 — Character Creation Rework (Phases 5–7)
 
 - [x] **Phase 5: Data Model + Migration Foundation** — Stable field schema, prompt assembler, convert-on-read migration for v1.0 boards (COMPLETE 2026-06-17)
-- [ ] **Phase 6: Wizard UI + Preset Library** — Multi-step character wizard mounted in GenerationDialog; saveable named-preset library wired into the wizard
+- [x] **Phase 6: Wizard UI + Preset Library** — Multi-step character wizard mounted in GenerationDialog; saveable named-preset library wired into the wizard (completed 2026-06-17)
 - [ ] **Phase 7: Constants Removal + i18n Audit** — Delete legacy preset constants, update ResultViewer, finalize EN+TR key parity as release gate
 
 ## Phase Details
@@ -95,7 +95,7 @@
 | 3. Turkish + Switcher | v1.0 | — | Complete | 2026-06-10 |
 | 4. Polish + Verify | v1.0 | — | Complete (4 items deferred) | 2026-06-10 |
 | 5. Data Model + Migration Foundation | v1.1 | 0/? | Not started | - |
-| 6. Wizard UI + Preset Library | v1.1 | 0/? | Not started | - |
+| 6. Wizard UI + Preset Library | v1.1 | 1/1 | Complete   | 2026-06-17 |
 | 7. Constants Removal + i18n Audit | v1.1 | 0/? | Not started | - |
 
 ---
