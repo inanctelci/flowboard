@@ -6,17 +6,23 @@
 // Migration steps (in order):
 //   Step 1: charCountry → charEthnicity (Phase 5 MIGRATE-01)
 //   Step 2: charHair composite → charHairColor + charHairStyle (Phase 6 D-14)
-import { CHARACTER_COUNTRIES } from "../../constants/character";
 import type { FlowboardNodeData } from "../../store/board";
 
-// Build lookup from CHARACTER_COUNTRIES to stay in sync if the constants
-// array ever adds entries. Phase 7 (MIGRATE-02) deletes CHARACTER_COUNTRIES —
-// at that point this import moves to an inline map.
-// Produces: { vn: "Vietnamese", jp: "Japanese", kr: "Korean", cn: "Chinese",
-//             th: "Thai", us: "American", fr: "French" }
-export const LEGACY_COUNTRY_TO_ETHNICITY: Record<string, string> = Object.fromEntries(
-  CHARACTER_COUNTRIES.map((c) => [c.key, c.tag]),
-);
+/**
+ * Legacy charCountry codes (v1.0 schema) → English ethnicity-bucket strings.
+ * Inlined from the (deleted) constants/character.ts CHARACTER_COUNTRIES map.
+ * Used by migrateCharacterNodeData() to populate charEthnicity on hydration
+ * of pre-v1.1 boards. Locked at 7 entries — no future codes will be added.
+ */
+export const LEGACY_COUNTRY_TO_ETHNICITY: Record<string, string> = {
+  vn: "Vietnamese",
+  jp: "Japanese",
+  kr: "Korean",
+  cn: "Chinese",
+  th: "Thai",
+  us: "American",
+  fr: "French",
+};
 
 // Migrate a single node's data applying all v1.1 convert-on-read migrations.
 // Pure, idempotent, no side effects (D-22).
